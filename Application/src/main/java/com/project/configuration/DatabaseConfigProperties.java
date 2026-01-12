@@ -1,10 +1,9 @@
-// src/main/java/com/project/configuration/DatabaseConfigProperties.java
 package com.project.configuration;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 
-@Configuration
+@Component
 @ConfigurationProperties(prefix = "database.connection")
 public class DatabaseConfigProperties {
 
@@ -14,7 +13,6 @@ public class DatabaseConfigProperties {
     private String password;
     private String database;
 
-    // Getters et setters
     public String getHost() {
         return host;
     }
