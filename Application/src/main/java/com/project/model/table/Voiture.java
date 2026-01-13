@@ -3,13 +3,19 @@ package com.project.model.table;
 
 import java.util.List;
 
+import com.project.databases.generalisation.annotation.AttributDb;
+import com.project.databases.generalisation.annotation.IdDb;
+import com.project.databases.generalisation.annotation.TableDb;
+@TableDb(name = "voiture") 
 public class Voiture {
-
+    @IdDb
+    @AttributDb(name = "id")
     private int id;
+    @AttributDb(name = "numero")
     private String numero;
+    @AttributDb(name = "nom")
     private String nom;
 
-    // Optionnel : relation inverse
     private List<PlaceVoiture> places;
 
     public Voiture() {

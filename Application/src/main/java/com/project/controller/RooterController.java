@@ -1,6 +1,8 @@
 package com.project.controller;
 
 import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -8,6 +10,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 import com.project.configuration.DatabaseConfigProperties;
 import com.project.databases.MyConnection;
+import com.project.databases.generalisation.DB;
+import com.project.model.table.PlaceVoiture;
+import com.project.model.table.Voiture;
 
 @Controller
 public class RooterController {
@@ -16,7 +21,7 @@ public class RooterController {
     private DatabaseConfigProperties dbConfig;
     
     @GetMapping("/") 
-    public String home() {
+    public String home() throws Exception {
         System.out.println("Database Config: " + dbConfig.toString());
         
         System.out.println("MyConnection values:");
@@ -24,17 +29,28 @@ public class RooterController {
         System.out.println("Port: " + MyConnection.getPort());
         System.out.println("Database: " + MyConnection.getDatabaseName());
         System.out.println("Username: " + MyConnection.getUserName());
-
+        Connection connection = null;
         try {
-            Connection connection = MyConnection.connect();
+            connection = MyConnection.connect();
+            Voiture fiara = new Voiture();
+            fiara.setNom("BMW");
+            fiara.setNumero("TDI8842");
+            DB.save(fiara, connection);
+            List<PlaceVoiture> voitures = (List<PlaceVoiture>) DB.getAllOrderAndLimitAndWhere(new PlaceVoiture(),"numero = '12'", "id DESC, numero ASC", 6,connection); 
+            for (PlaceVoiture voiture : voitures) {
+                System.out.println(voiture.getId()+" : "+voiture.getVoiture().getNom()+" : "+voiture.getNumero());
+            }
             if (connection== null) {
                 System.out.println("arakzany");
             }else{
-                System.out.println("mety"); 
+                System.out.println("mety io eeh "); 
             }
         } catch (Exception e) {
             e.printStackTrace();
         } 
+        if (connection != null) {
+            connection.close();
+        }
         
         return "home";
     }

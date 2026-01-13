@@ -1,9 +1,18 @@
 package com.project.model.table;
 
+import com.project.databases.generalisation.annotation.AttributDb;
+import com.project.databases.generalisation.annotation.IdDb;
+import com.project.databases.generalisation.annotation.TableDb;
+
+@TableDb(name = "place_voiture")
 public class PlaceVoiture {
 
+    @IdDb
+    @AttributDb(name = "id")
     private int id;
+    @AttributDb(name = "id_voiture") 
     private Voiture voiture; // ← objet Voiture
+    @AttributDb(name = "numero")
     private String numero;
 
     public PlaceVoiture() {
