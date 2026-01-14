@@ -9,7 +9,7 @@ public class PlaceVoiture {
 
     @IdDb
     @AttributDb(name = "id")
-    private int id;
+    private Integer id;
     @AttributDb(name = "id_voiture") 
     private Voiture voiture; // ← objet Voiture
     @AttributDb(name = "numero")

@@ -10,12 +10,12 @@ import com.project.databases.generalisation.annotation.TableDb;
 public class Voiture {
     @IdDb
     @AttributDb(name = "id")
-    private int id;
+    private Integer id;
     @AttributDb(name = "numero")
     private String numero;
     @AttributDb(name = "nom")
     private String nom;
-
+ 
     private List<PlaceVoiture> places;
 
     public Voiture() {

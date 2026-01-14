@@ -10,5 +10,7 @@ public class InfoObject {
     public String nameIdAttributsInTable;
     public Class<?> objectIdAttribut;
     public List<Object> valueAttributs;
+    public List<String> typeAttributs;
+    public String typeIdAttributs;
     public Object valueId;
 }

@@ -33,9 +33,15 @@ public class RooterController {
         try {
             connection = MyConnection.connect();
             Voiture fiara = new Voiture();
-            fiara.setNom("BMW");
+            fiara.setId(2);
+            fiara.setNom("BMWx");
             fiara.setNumero("TDI8842");
-            DB.save(fiara, connection);
+            // DB.save(fiara, connection);
+
+            PlaceVoiture placeVoiture = (PlaceVoiture) DB.getById(new PlaceVoiture(), 1, connection);
+            placeVoiture.setVoiture(fiara);
+            DB.save(placeVoiture, connection);
+            // List<PlaceVoiture> voitures = (List<PlaceVoiture>) DB.getAll(new PlaceVoiture(), connection);
             List<PlaceVoiture> voitures = (List<PlaceVoiture>) DB.getAllOrderAndLimitAndWhere(new PlaceVoiture(),"numero = '12'", "id DESC, numero ASC", 6,connection); 
             for (PlaceVoiture voiture : voitures) {
                 System.out.println(voiture.getId()+" : "+voiture.getVoiture().getNom()+" : "+voiture.getNumero());
