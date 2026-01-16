@@ -6,13 +6,20 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
 import com.project.configuration.DatabaseConfigProperties;
 import com.project.databases.MyConnection;
 import com.project.databases.generalisation.DB;
+import com.project.dto.PrixTypePlaceVoyageDTO;
+import com.project.dto.TypePlaceDTO;
+import com.project.dto.TypePlaceVoyageDTO;
 import com.project.model.table.PlaceVoiture;
+import com.project.model.table.TypePlace;
 import com.project.model.table.Voiture;
+import com.project.model.table.Voyage;
+import com.project.model.table.VoyageVoiture;
 
 @Controller
 public class RooterController {
@@ -20,7 +27,7 @@ public class RooterController {
     @Autowired
     private DatabaseConfigProperties dbConfig;
     
-    @GetMapping("/") 
+    @GetMapping("/home") 
     public String home() throws Exception {
         System.out.println("Database Config: " + dbConfig.toString());
         
@@ -75,4 +82,197 @@ public class RooterController {
     public String logout() {
         return "pages/login";
     }
+    
+     @GetMapping("/")
+    public String creationVoiture() { 
+        return "pages/voiture/creation"; 
+    }
+
+     @GetMapping("/place")
+    public String creationPlaceVoiture(Model model) {
+        Connection connection = null;
+        try {
+            connection = MyConnection.connect();
+            
+            // Récupérer la liste des voitures depuis la base
+            List<Voiture> voitures = (List<Voiture>) DB.getAll(new Voiture(), connection);
+            
+            // Ajouter la liste des voitures au modèle
+            model.addAttribute("voitures", voitures);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("error", "Erreur lors du chargement des voitures: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return "pages/voiture/creationPlace";
+    }
+
+    @GetMapping("/voyage")
+    public String creationVoyage() { 
+        return "pages/voiture/creationVoyage"; 
+    }
+     @GetMapping("/VoitureVoyage")
+public String asignationVoitureVoyage(Model model) {
+    Connection connection = null;
+    try {
+        connection = MyConnection.connect();
+        
+        // Récupérer les listes des voitures et voyages
+        List<Voiture> voitures = (List<Voiture>) DB.getAll(new Voiture(), connection);
+        List<Voyage> voyages = (List<Voyage>) DB.getAll(new Voyage(), connection);
+        
+        // Ajouter les listes au modèle
+        model.addAttribute("voitures", voitures);
+        model.addAttribute("voyages", voyages);
+        
+    } catch (Exception e) {
+        e.printStackTrace();
+        model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+    } finally {
+        if (connection != null) {
+            try {
+                connection.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    return "pages/voiture/voitureVoyage";
+}
+    @GetMapping("/listeVoitureParVoyage")
+public String listeVoitureVoyage(Model model) {
+    Connection connection = null;
+    try {
+        connection = MyConnection.connect();
+        
+        // Récupérer la liste des associations voyage-voiture
+        List<VoyageVoiture> voyageVoitures = (List<VoyageVoiture>) DB.getAll(new VoyageVoiture(), connection);
+        for (int i = 0; i < voyageVoitures.size(); i++) {
+            voyageVoitures.get(i).calculPrixMaximum(connection);
+        }
+        
+        // Ajouter la liste au modèle
+        model.addAttribute("voyageVoitures", voyageVoitures);
+        
+    } catch (Exception e) {
+        e.printStackTrace();
+        model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+    } finally {
+        if (connection != null) {
+            try {
+                connection.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    return "pages/voiture/listeParVoyage";
+}
+    @GetMapping("/listeVoyage")
+public String listeVoyage(Model model) {
+    Connection connection = null;
+    try {
+        connection = MyConnection.connect();
+        
+        // Récupérer la liste des voyages depuis la base
+        List<Voyage> voyages = (List<Voyage>) DB.getAll(new Voyage(), connection);
+        
+        // Ajouter la liste des voyages au modèle
+        model.addAttribute("voyages", voyages);
+        
+    } catch (Exception e) {
+        e.printStackTrace();
+        model.addAttribute("error", "Erreur lors du chargement des voyages: " + e.getMessage());
+    } finally {
+        if (connection != null) {
+            try {
+                connection.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    return "pages/voiture/listeVoyage";
+}
+    @GetMapping("/typePlace")
+    public String modificationTypePlace() { 
+        return "pages/voiture/typePlaceVoyage"; 
+    }
+    @GetMapping("/ajoutPrix")
+public String ajoutPrixPourChaqueTypePlace(Model model) {
+    Connection connection = null;
+    try {
+        connection = MyConnection.connect();
+        
+        // Récupérer les types de place et voyages
+        List<TypePlace> typePlaces = (List<TypePlace>) DB.getAll(new TypePlace(), connection);
+        List<Voyage> voyages = (List<Voyage>) DB.getAll(new Voyage(), connection);
+        
+        // Ajouter au modèle
+        model.addAttribute("typePlaces", typePlaces);
+        model.addAttribute("voyages", voyages);
+        model.addAttribute("prixDTO", new PrixTypePlaceVoyageDTO());
+        
+    } catch (Exception e) {
+        e.printStackTrace();
+        model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+    } finally {
+        if (connection != null) {
+            try {
+                connection.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    return "pages/voiture/ajoutPrix";
+}
+
+
+    @GetMapping("/creertypePlace")
+public String modificationTypePlace(Model model) {
+    // Ajouter un DTO vide pour le formulaire
+    model.addAttribute("typePlaceDTO", new TypePlaceDTO());
+    return "pages/voiture/creerTypePlace";
+}
+
+@GetMapping("/ajoutTypePlaceVoyage")
+public String ajoutTypePlaceVoyage(Model model) {
+    Connection connection = null;
+    try {
+        connection = MyConnection.connect();
+        
+        // Récupérer toutes les données nécessaires
+        List<VoyageVoiture> voyageVoitures = (List<VoyageVoiture>) DB.getAll(new VoyageVoiture(), connection);
+        List<PlaceVoiture> places = (List<PlaceVoiture>) DB.getAll(new PlaceVoiture(), connection);
+        List<TypePlace> typePlaces = (List<TypePlace>) DB.getAll(new TypePlace(), connection);
+        
+        // Ajouter au modèle
+        model.addAttribute("voyageVoitures", voyageVoitures);
+        model.addAttribute("places", places);
+        model.addAttribute("typePlaces", typePlaces);
+        model.addAttribute("typePlaceVoyageDTO", new TypePlaceVoyageDTO());
+        
+    } catch (Exception e) {
+        e.printStackTrace();
+        model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+    } finally {
+        if (connection != null) {
+            try {
+                connection.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    return "pages/voiture/ajoutTypePlaceVoyage";
+}
 }  
