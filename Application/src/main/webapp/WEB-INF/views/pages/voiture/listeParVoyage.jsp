@@ -50,7 +50,6 @@
                             <th>Numéro Voiture</th>
                             <th>Prix (Ar)</th>
                             <th>CA (Ar)</th>
-                            <th>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -89,17 +88,7 @@
                             </td>
                             <td class="text-success"> <%= vv.getPrixMaximum() %></td>
                             <td class="text-primary"> <%= vv.getMontantCA() %></td>
-                            <td>
-                              <a href="see" class="btn btn-info btn-sm">
-                                <i class="mdi mdi-eye"></i> Voir
-                              </a>
-                              <a href="modify" class="btn btn-primary btn-sm">
-                                <i class="mdi mdi-pen"></i> Modifier
-                              </a>
-                              <a href="delete" class="btn btn-danger btn-sm">
-                                <i class="mdi mdi-delete"></i> Supprimer
-                              </a>
-                            </td>
+                            
                           </tr>
                           <% }
                              } else { %>

@@ -48,7 +48,6 @@
                             <th>ID</th>
                             <th>Nom</th>
                             <th>Date</th>
-                            <th>Actions</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -65,14 +64,7 @@
                                 Non défini
                               <% } %>
                             </td>
-                            <td>
-                              <a href="see" class="btn btn-info btn-sm">
-                                <i class="mdi mdi-coin"></i> Ajouter prix place
-                              </a>
-                              <a href="delete" class="btn btn-primary btn-sm">
-                                <i class="mdi mdi-car"></i> Liste voiture 
-                              </a>
-                            </td>
+                           
                           </tr>
                           <% }
                              } else { %>
