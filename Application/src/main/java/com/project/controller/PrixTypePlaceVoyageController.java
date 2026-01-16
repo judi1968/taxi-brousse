@@ -25,12 +25,14 @@ public class PrixTypePlaceVoyageController {
             
             // Récupérer les objets
             TypePlace typePlace = (TypePlace) DB.getById(new TypePlace(), prixDTO.getIdTypePlace(), connection);
+            TypeClient typeClient = (TypeClient) DB.getById(new TypeClient(), prixDTO.getIdTypeClient(), connection);
             Voyage voyage = (Voyage) DB.getById(new Voyage(), prixDTO.getIdVoyage(), connection);
             
             // Créer l'objet PrixTypePlaceVoyage
             PrixTypePlaceVoyage prixTypePlaceVoyage = new PrixTypePlaceVoyage();
             prixTypePlaceVoyage.setTypePlace(typePlace);
             prixTypePlaceVoyage.setVoyage(voyage);
+            prixTypePlaceVoyage.setTypeClient(typeClient);
             prixTypePlaceVoyage.setMontant(prixDTO.getMontant());
             
             // Sauvegarder
@@ -39,9 +41,11 @@ public class PrixTypePlaceVoyageController {
             // Recharger les listes
             List<TypePlace> typePlaces = (List<TypePlace>) DB.getAll(new TypePlace(), connection);
             List<Voyage> voyages = (List<Voyage>) DB.getAll(new Voyage(), connection);
+            List<TypeClient> typeClients = (List<TypeClient>) DB.getAll(new TypeClient(), connection);
             
             model.addAttribute("typePlaces", typePlaces);
             model.addAttribute("voyages", voyages);
+            model.addAttribute("typeClients", typeClients);
             model.addAttribute("success", "Prix enregistré avec succès !");
             model.addAttribute("prixDTO", new PrixTypePlaceVoyageDTO());
             

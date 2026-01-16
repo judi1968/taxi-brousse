@@ -48,7 +48,8 @@
                             <th>Date Voyage</th>
                             <th>Voiture</th>
                             <th>Numéro Voiture</th>
-                            <th>Prix (€)</th>
+                            <th>Prix (Ar)</th>
+                            <th>CA (Ar)</th>
                             <th>Actions</th>
                           </tr>
                         </thead>
@@ -87,6 +88,7 @@
                               <% } %>
                             </td>
                             <td class="text-success"> <%= vv.getPrixMaximum() %></td>
+                            <td class="text-primary"> <%= vv.getMontantCA() %></td>
                             <td>
                               <a href="see" class="btn btn-info btn-sm">
                                 <i class="mdi mdi-eye"></i> Voir

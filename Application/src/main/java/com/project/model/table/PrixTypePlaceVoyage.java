@@ -20,6 +20,17 @@ public class PrixTypePlaceVoyage {
     @AttributDb(name = "montant")
     private double montant;
 
+    @AttributDb(name = "id_type_client")
+    private TypeClient typeClient;
+
+    public TypeClient getTypeClient() {
+        return typeClient;
+    }
+
+    public void setTypeClient(TypeClient typeClient) {
+        this.typeClient = typeClient;
+    }
+
     public PrixTypePlaceVoyage() {
     }
 

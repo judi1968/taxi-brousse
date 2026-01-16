@@ -128,6 +128,22 @@
   </a>
 </li>
 <li class="nav-item menu-items">
+  <a class="nav-link" href="typeClient">
+    <span class="menu-icon">
+      <i class="mdi mdi-user"></i>
+    </span>
+    <span class="menu-title">Type de client</span>
+  </a>
+</li>
+<li class="nav-item menu-items">
+  <a class="nav-link" href="achatClient">
+    <span class="menu-icon">
+      <i class="mdi mdi-user"></i>
+    </span>
+    <span class="menu-title">achat de client</span>
+  </a>
+</li>
+<li class="nav-item menu-items">
   <a class="nav-link" href="ajoutPrix">
     <span class="menu-icon">
       <i class="mdi mdi-cash"></i>

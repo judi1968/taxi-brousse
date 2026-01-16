@@ -2,6 +2,7 @@ package com.project.dto;
 
 public class PrixTypePlaceVoyageDTO {
     private Integer idTypePlace;
+    private Integer idTypeClient;
     private Integer idVoyage;
     private Double montant;
 
@@ -16,6 +17,14 @@ public class PrixTypePlaceVoyageDTO {
 
     public Integer getIdTypePlace() {
         return idTypePlace;
+    }
+
+    public Integer getIdTypeClient() {
+        return idTypeClient;
+    }
+
+    public void setIdTypeClient(Integer idTypeClient) {
+        this.idTypeClient = idTypeClient;
     }
 
     public void setIdTypePlace(Integer idTypePlace) {

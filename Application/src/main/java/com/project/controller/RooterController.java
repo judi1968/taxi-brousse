@@ -12,11 +12,15 @@ import org.springframework.web.bind.annotation.GetMapping;
 import com.project.configuration.DatabaseConfigProperties;
 import com.project.databases.MyConnection;
 import com.project.databases.generalisation.DB;
+import com.project.dto.AchatClientDTO;
 import com.project.dto.PrixTypePlaceVoyageDTO;
+import com.project.dto.TypeClientDTO;
 import com.project.dto.TypePlaceDTO;
 import com.project.dto.TypePlaceVoyageDTO;
 import com.project.model.table.PlaceVoiture;
+import com.project.model.table.TypeClient;
 import com.project.model.table.TypePlace;
+import com.project.model.table.TypePlaceVoyage;
 import com.project.model.table.Voiture;
 import com.project.model.table.Voyage;
 import com.project.model.table.VoyageVoiture;
@@ -157,6 +161,7 @@ public String listeVoitureVoyage(Model model) {
         List<VoyageVoiture> voyageVoitures = (List<VoyageVoiture>) DB.getAll(new VoyageVoiture(), connection);
         for (int i = 0; i < voyageVoitures.size(); i++) {
             voyageVoitures.get(i).calculPrixMaximum(connection);
+            voyageVoitures.get(i).calculCA(connection);
         }
         
         // Ajouter la liste au modèle
@@ -215,9 +220,11 @@ public String ajoutPrixPourChaqueTypePlace(Model model) {
         // Récupérer les types de place et voyages
         List<TypePlace> typePlaces = (List<TypePlace>) DB.getAll(new TypePlace(), connection);
         List<Voyage> voyages = (List<Voyage>) DB.getAll(new Voyage(), connection);
+        List<TypeClient> typeClients = (List<TypeClient>) DB.getAll(new TypeClient(), connection);
         
         // Ajouter au modèle
         model.addAttribute("typePlaces", typePlaces);
+        model.addAttribute("typeClients", typeClients);
         model.addAttribute("voyages", voyages);
         model.addAttribute("prixDTO", new PrixTypePlaceVoyageDTO());
         
@@ -274,5 +281,39 @@ public String ajoutTypePlaceVoyage(Model model) {
         }
     }
     return "pages/voiture/ajoutTypePlaceVoyage";
+}
+
+@GetMapping("/typeClient")
+    public String creationTypeClient(Model model) {
+        return "pages/voiture/ajoutTypeClient";
+    }
+
+    @GetMapping("/achatClient")
+public String creationAchatClient(Model model) {
+    Connection connection = null;
+    try {
+        connection = MyConnection.connect();
+        
+        // Récupérer les types de client et les associations type-place-voyage
+        List<TypeClient> typeClients = (List<TypeClient>) DB.getAll(new TypeClient(), connection);
+        List<TypePlaceVoyage> typePlaceVoyages = (List<TypePlaceVoyage>) DB.getAll(new TypePlaceVoyage(), connection);
+        
+        // Ajouter au modèle
+        model.addAttribute("typeClients", typeClients);
+        model.addAttribute("typePlaceVoyages", typePlaceVoyages);
+        
+    } catch (Exception e) {
+        e.printStackTrace();
+        model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+    } finally {
+        if (connection != null) {
+            try {
+                connection.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    return "pages/voiture/achatClient";
 }
 }  

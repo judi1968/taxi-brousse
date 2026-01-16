@@ -1,13 +1,11 @@
 <%@ page contentType="text/html;charset=UTF-8" %>
 <%@ page import="java.util.List" %>
-<%@ page import="com.project.model.table.TypePlace" %>
 <%@ page import="com.project.model.table.TypeClient" %>
-<%@ page import="com.project.model.table.Voyage" %>
+<%@ page import="com.project.model.table.TypePlaceVoyage" %>
 <%
-    List<TypePlace> typePlaces = (List<TypePlace>) request.getAttribute("typePlaces");
     List<TypeClient> typeClients = (List<TypeClient>) request.getAttribute("typeClients");
-    List<Voyage> voyages = (List<Voyage>) request.getAttribute("voyages");
-
+    List<TypePlaceVoyage> typePlaceVoyages = (List<TypePlaceVoyage>) request.getAttribute("typePlaceVoyages");
+    
     String success = (String) request.getAttribute("success");
     String error = (String) request.getAttribute("error");
 %>
@@ -16,7 +14,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Ajout de Prix par Type de Place et Voyage</title>
+    <title>Achat Client</title>
     <%@ include file="../../includes/css.jsp" %>
   </head>
   <body>
@@ -27,10 +25,9 @@
         <div class="main-panel">
           <div class="content-wrapper">
             <div class="page-header">
-              <h3 class="page-title">Ajout de Prix</h3>
+              <h3 class="page-title">Enregistrement Achat Client</h3>
             </div>
             
-            <!-- Messages d'alerte -->
             <% if (success != null) { %>
             <div class="alert alert-success alert-dismissible fade show" role="alert">
               <%= success %>
@@ -43,7 +40,7 @@
             <% if (error != null) { %>
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
               <%= error %>
-              <button type="button" class.close data-dismiss="alert" aria-label="Close">
+              <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                 <span aria-hidden="true">&times;</span>
               </button>
             </div>
@@ -53,31 +50,14 @@
               <div class="col-md-12 grid-margin stretch-card">
                 <div class="card">
                   <div class="card-body">
-                    <h4 class="card-title">Définition des Prix</h4>
-                    <p class="card-description">Définir le prix pour chaque type de place par voyage</p>
-                    <form class="forms-sample" action="savePrixTypePlaceVoyage" method="post">
+                    <h4 class="card-title">Enregistrement d'un Achat</h4>
+                    <p class="card-description">Associer un type de client à une réservation de place</p>
+                    <form class="forms-sample" action="saveAchatClient" method="post">
                       <div class="row">
                         <div class="col-md-6">
-                          <!-- TypePlace -->
+                          <!-- Type Client -->
                           <div class="form-group row">
-                            <label for="idTypePlace" class="col-sm-4 col-form-label">Type de Place</label>
-                            <div class="col-sm-8">
-                              <select class="form-control" id="idTypePlace" name="idTypePlace" required>
-                                <option value="">Sélectionnez un type de place</option>
-                                <% if (typePlaces != null) {
-                                    for (TypePlace typePlace : typePlaces) { 
-                                %>
-                                <option value="<%= typePlace.getId() %>">
-                                  <%= typePlace.getNom() %>
-                                </option>
-                                <% }
-                                } %>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div class="form-group row">
-                            <label for="idTypeClient" class="col-sm-4 col-form-label">Type de client</label>
+                            <label for="idTypeClient" class="col-sm-4 col-form-label">Type de Client</label>
                             <div class="col-sm-8">
                               <select class="form-control" id="idTypeClient" name="idTypeClient" required>
                                 <option value="">Sélectionnez un type de client</option>
@@ -93,37 +73,35 @@
                             </div>
                           </div>
                           
-                          <!-- Voyage -->
+                          <!-- Type Place Voyage -->
                           <div class="form-group row">
-                            <label for="idVoyage" class="col-sm-4 col-form-label">Voyage</label>
+                            <label for="idTypePlaceVoyage" class="col-sm-4 col-form-label">Réservation</label>
                             <div class="col-sm-8">
-                              <select class="form-control" id="idVoyage" name="idVoyage" required>
-                                <option value="">Sélectionnez un voyage</option>
-                                <% if (voyages != null) {
-                                    for (Voyage voyage : voyages) { 
+                              <select class="form-control" id="idTypePlaceVoyage" name="idTypePlaceVoyage" required>
+                                <option value="">Sélectionnez une réservation</option>
+                                <% if (typePlaceVoyages != null) {
+                                    for (TypePlaceVoyage tpv : typePlaceVoyages) { 
                                 %>
-                                <option value="<%= voyage.getId() %>">
-                                  <%= voyage.getNom() %>
-                                 
+                                <option value="<%= tpv.getId() %>">
+                                  <% if (tpv.getVoyageVoiture() != null && tpv.getVoyageVoiture().getVoyage() != null) { %>
+                                    Voyage: <%= tpv.getVoyageVoiture().getVoyage().getNom() %>
+                                  <% } %>
+                                  <% if (tpv.getPlace() != null) { %>
+                                    - Place: <%= tpv.getPlace().getNumero() %>
+                                  <% } %>
+                                  <% if (tpv.getTypePlace() != null) { %>
+                                    (<%= tpv.getTypePlace().getNom() %>)
+                                  <% } %>
                                 </option>
                                 <% }
                                 } %>
                               </select>
                             </div>
                           </div>
-                          
-                          <!-- Montant -->
-                          <div class="form-group row">
-                            <label for="montant" class="col-sm-4 col-form-label">Montant (€)</label>
-                            <div class="col-sm-8">
-                              <input type="number" class="form-control" id="montant" name="montant" 
-                                     placeholder="Ex: 50.00" step="0.01" min="0" required>
-                            </div>
-                          </div>
                         </div>               
                       </div>
-                      <button type="submit" class="btn btn-primary me-2">Enregistrer le Prix</button>
-                      <a href="/ajoutPrix" class="btn btn-dark">Annuler</a>
+                      <button type="submit" class="btn btn-primary me-2">Enregistrer l'Achat</button>
+                      <a href="/achatClient" class="btn btn-dark">Annuler</a>
                     </form>
                   </div>
                 </div>

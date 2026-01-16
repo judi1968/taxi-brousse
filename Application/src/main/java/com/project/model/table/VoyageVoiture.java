@@ -1,6 +1,7 @@
 package com.project.model.table;
 
 import java.sql.Connection;
+import java.util.ArrayList;
 import java.util.List;
 
 import com.project.databases.generalisation.DB;
@@ -23,6 +24,16 @@ public class VoyageVoiture {
 
     public double prixMaximum;
 
+    public double montantCA;
+
+    public double getMontantCA() {
+        return montantCA;
+    }
+
+    public void setMontantCA(double montantCa) {
+        this.montantCA = montantCa;
+    }
+
     public double getPrixMaximum() {
         return prixMaximum;
     }
@@ -39,8 +50,7 @@ public class VoyageVoiture {
             List<TypePlaceVoyage> typePlaceVoyages = (List<TypePlaceVoyage>) DB.getAllWhere(new TypePlaceVoyage(), " id_voyage_voiture  = "+ this.getId(), connection);
             for (TypePlaceVoyage typePlaceVoyage : typePlaceVoyages) {
                 if (typePlaceVoyages.size() > 0) {
-                    System.out.println("hhgf"); 
-                    List<PrixTypePlaceVoyage> prixTypePlaceVoyage = (List<PrixTypePlaceVoyage>) DB.getAllWhere(new PrixTypePlaceVoyage(), "id_voyage = "+this.getVoyage().getId()+" AND id_type_place = "+typePlaceVoyage.getTypePlace().getId(), connection);
+                    List<PrixTypePlaceVoyage> prixTypePlaceVoyage = (List<PrixTypePlaceVoyage>) DB.getAllWhere(new PrixTypePlaceVoyage(), "id_voyage = "+this.getVoyage().getId()+" AND id_type_place = "+typePlaceVoyage.getTypePlace().getId()  + " and id_type_client = 1", connection);
                     if (prixTypePlaceVoyage.size() > 0) {
                         prixMax += prixTypePlaceVoyage.get(0).getMontant();             
         
@@ -52,6 +62,35 @@ public class VoyageVoiture {
         // } 
 
         this.setPrixMaximum(prixMax);
+    }
+
+    public void calculCA(Connection connection) throws Exception{
+        double CA = 0;
+        List<TypePlaceVoyage> typePlaceVoyages = (List<TypePlaceVoyage>) DB.getAllWhere(new TypePlaceVoyage(), " id_voyage_voiture = " + this.getId(), connection);
+        List<AchatClient> achatClients = new ArrayList<>();
+        for (TypePlaceVoyage typePlaceVoyage : typePlaceVoyages) {
+            // System.out.println("gfbd");
+            List<AchatClient> achatClientsByIdPlaceVoyage = (List<AchatClient>) DB.getAllWhere(new AchatClient(), " id_type_place_voyage = "+typePlaceVoyage.getId(), connection);
+            if (achatClientsByIdPlaceVoyage.size() > 0) {
+                // System.out.println("dba");
+                achatClients.add(achatClientsByIdPlaceVoyage.get(0));
+            }
+        }
+        for (AchatClient achatClient : achatClients) {
+            System.out.println("gfadhbfah");
+            String whereCalculPrix = "";
+            whereCalculPrix += " id_type_place = " + achatClient.getTypePlaceVoyage().getTypePlace().getId();
+            whereCalculPrix += " AND id_voyage = " + achatClient.getTypePlaceVoyage().getVoyageVoiture().getVoyage().getId();
+            whereCalculPrix += " AND id_type_client = " + achatClient.getTypeClient().getId();
+
+            List<PrixTypePlaceVoyage> prixTypePlaceVoyages = (List<PrixTypePlaceVoyage>) DB.getAllWhere(new PrixTypePlaceVoyage(), whereCalculPrix, connection);
+            System.out.println(prixTypePlaceVoyages.size() + " where est "+ whereCalculPrix);
+            if (prixTypePlaceVoyages.size() > 0) {
+                CA += prixTypePlaceVoyages.get(0).getMontant();
+            }
+        }
+        
+        this.setMontantCA(CA);
     }
     public VoyageVoiture() {
     }
