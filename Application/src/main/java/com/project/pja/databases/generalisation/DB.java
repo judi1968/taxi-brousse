@@ -3,18 +3,24 @@ package com.project.pja.databases.generalisation;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import com.project.model.table.VoyageVoiture;
 import com.project.pja.databases.MyConnection;
 import com.project.pja.databases.generalisation.annotation.AttributDb;
 import com.project.pja.databases.generalisation.annotation.IdDb;
+import com.project.pja.databases.generalisation.annotation.ShowTable;
 import com.project.pja.databases.generalisation.annotation.TableDb;
 import com.project.pja.databases.generalisation.utils.InfoObject;
 
@@ -1420,6 +1426,115 @@ public class DB {
                 connection.close();
             }
         }
+    }
+
+    public static String getTableau(Object listObject,Object object, String titre, String sous_titre) throws Exception {
+        
+       String templateTable =  """
+               
+                <div class="row">
+              <div class="col-lg-12 grid-margin stretch-card">
+                <div class="card">
+                  <div class="card-body">
+                    <h4 class="card-title">%%title%%</h4>
+                    <p class="card-description">%%subtitle%%</p>
+                    <div class="table-responsive">
+                      %%tableau%%
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+                    
+                    """;
+
+        return templateTable
+        .replace("%%title%%", titre)
+        .replace("%%subtitle%%", sous_titre)
+        .replace("%%tableau%%", DB.getHTMLTable(listObject, object));
+    }
+
+    // Version avec filtre + tri
+    public static List<Method> getSortedMethods(Class<?> clazz) {
+        return Arrays.stream(clazz.getDeclaredMethods())
+            .filter(methods -> {
+                ShowTable rang = methods.getAnnotation(ShowTable.class);
+                return rang != null && rang.numero() != 0;
+            })
+            .sorted(Comparator.comparingInt(field -> 
+                field.getAnnotation(ShowTable.class).numero()))
+            .collect(Collectors.toList());
+    }
+    
+    // Version retournant un tableau
+    public static Method[] getSortedMethodssArray(Class<?> clazz) {
+        List<Method> methodsList = getSortedMethods(clazz);
+        return methodsList.toArray(new Method[0]);
+    }
+
+
+    private static String getHTMLTable(Object listObject, Object object) throws Exception {
+        Method[] methods = DB.getSortedMethodssArray(object.getClass());
+        String headerTable = "";
+        for (Method method : methods) {
+            ShowTable showTable = method.getAnnotation(ShowTable.class);
+            String name = showTable.name();
+            headerTable += "<th>"+name+"</th> \n";
+        }
+        int numberListObject = 0;
+        if (listObject == null) {
+            numberListObject = 0; 
+        }
+    
+        if (listObject instanceof List<?>) {
+            numberListObject = ((List<?>) listObject).size();
+        }
+
+        String bodyTable = "";
+        if (numberListObject == 0) {
+            bodyTable = """
+                <tr>
+                    <td colspan="%numberColspan%" class="text-center">Aucun donne</td>
+                </tr>
+            """;
+            bodyTable.replace("%numberColspan%", methods.length+"");
+        }else{
+            List<?> list = (List<?>)listObject;
+            StringBuilder rows = new StringBuilder();
+            
+            for (Object item : list) {
+                StringBuilder row = new StringBuilder("<tr>\n");
+                
+                for (Method method : methods) {
+                    try {
+                        Object value = method.invoke(item);
+                        String displayValue = (value != null) ? value.toString() : "";
+                        row.append("<td>").append(displayValue).append("</td>\n");
+                    } catch (Exception e) {
+                        row.append("<td class=\"text-danger\">Erreur</td>\n");
+                    }
+                }
+                
+                row.append("</tr>\n");
+                rows.append(row);
+            }
+            
+            bodyTable = rows.toString();
+        }
+        String templateTable =  """
+                <table class="table table-hover table-striped">
+                        <thead>
+                          <tr>
+                            %%headerTable%%
+                          </tr>
+                        </thead>
+                        <tbody>
+                            %%bodyTable%%
+                        </tbody>
+                      </table>
+                """;
+
+        return templateTable.replace("%%headerTable%%", headerTable).replace("%%bodyTable%%", bodyTable);
     }
 
 }

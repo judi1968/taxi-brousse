@@ -27,14 +27,14 @@ import com.project.pja.databases.generalisation.DB;
 
 @Controller
 public class RooterController {
-    
+
     @Autowired
     private DatabaseConfigProperties dbConfig;
-    
-    @GetMapping("/home") 
+
+    @GetMapping("/home")
     public String home() throws Exception {
         System.out.println("Database Config: " + dbConfig.toString());
-        
+
         System.out.println("MyConnection values:");
         System.out.println("Host: " + MyConnection.getIp());
         System.out.println("Port: " + MyConnection.getPort());
@@ -52,29 +52,32 @@ public class RooterController {
             PlaceVoiture placeVoiture = (PlaceVoiture) DB.getById(new PlaceVoiture(), 1, connection);
             placeVoiture.setVoiture(fiara);
             DB.save(placeVoiture, connection);
-            // List<PlaceVoiture> voitures = (List<PlaceVoiture>) DB.getAll(new PlaceVoiture(), connection);
-            List<PlaceVoiture> voitures = (List<PlaceVoiture>) DB.getAllOrderAndLimitAndWhere(new PlaceVoiture(),"numero = '12'", "id DESC, numero ASC", 6,connection); 
+            // List<PlaceVoiture> voitures = (List<PlaceVoiture>) DB.getAll(new
+            // PlaceVoiture(), connection);
+            List<PlaceVoiture> voitures = (List<PlaceVoiture>) DB.getAllOrderAndLimitAndWhere(new PlaceVoiture(),
+                    "numero = '12'", "id DESC, numero ASC", 6, connection);
             for (PlaceVoiture voiture : voitures) {
-                System.out.println(voiture.getId()+" : "+voiture.getVoiture().getNom()+" : "+voiture.getNumero());
+                System.out
+                        .println(voiture.getId() + " : " + voiture.getVoiture().getNom() + " : " + voiture.getNumero());
             }
-            if (connection== null) {
+            if (connection == null) {
                 System.out.println("arakzany");
-            }else{
-                System.out.println("mety io eeh "); 
+            } else {
+                System.out.println("mety io eeh ");
             }
         } catch (Exception e) {
             e.printStackTrace();
-        } 
+        }
         if (connection != null) {
             connection.close();
         }
-        
+
         return "home";
     }
 
     @GetMapping("/form")
     public String form() {
-        return "pages/form"; 
+        return "pages/form";
     }
 
     @GetMapping("/table")
@@ -86,24 +89,24 @@ public class RooterController {
     public String logout() {
         return "pages/login";
     }
-    
-     @GetMapping("/")
-    public String creationVoiture() { 
-        return "pages/voiture/creation"; 
+
+    @GetMapping("/")
+    public String creationVoiture() {
+        return "pages/voiture/creation";
     }
 
-     @GetMapping("/place")
+    @GetMapping("/place")
     public String creationPlaceVoiture(Model model) {
         Connection connection = null;
         try {
             connection = MyConnection.connect();
-            
+
             // Récupérer la liste des voitures depuis la base
             List<Voiture> voitures = (List<Voiture>) DB.getAll(new Voiture(), connection);
-            
+
             // Ajouter la liste des voitures au modèle
             model.addAttribute("voitures", voitures);
-            
+
         } catch (Exception e) {
             e.printStackTrace();
             model.addAttribute("error", "Erreur lors du chargement des voitures: " + e.getMessage());
@@ -120,200 +123,207 @@ public class RooterController {
     }
 
     @GetMapping("/voyage")
-    public String creationVoyage() { 
-        return "pages/voiture/creationVoyage"; 
+    public String creationVoyage() {
+        return "pages/voiture/creationVoyage";
     }
-     @GetMapping("/VoitureVoyage")
-public String asignationVoitureVoyage(Model model) {
-    Connection connection = null;
-    try {
-        connection = MyConnection.connect();
-        
-        // Récupérer les listes des voitures et voyages
-        List<Voiture> voitures = (List<Voiture>) DB.getAll(new Voiture(), connection);
-        List<Voyage> voyages = (List<Voyage>) DB.getAll(new Voyage(), connection);
-        
-        // Ajouter les listes au modèle
-        model.addAttribute("voitures", voitures);
-        model.addAttribute("voyages", voyages);
-        
-    } catch (Exception e) {
-        e.printStackTrace();
-        model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
-    } finally {
-        if (connection != null) {
-            try {
-                connection.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
-    return "pages/voiture/voitureVoyage";
-}
-    @GetMapping("/listeVoitureParVoyage")
-public String listeVoitureVoyage(Model model) {
-    Connection connection = null;
-    try {
-        connection = MyConnection.connect();
-        
-        // Récupérer la liste des associations voyage-voiture
-        List<VoyageVoiture> voyageVoitures = (List<VoyageVoiture>) DB.getAll(new VoyageVoiture(), connection);
-        for (int i = 0; i < voyageVoitures.size(); i++) {
-            voyageVoitures.get(i).calculPrixMaximum(connection);
-            voyageVoitures.get(i).calculCA(connection);
-        }
-        
-        // Ajouter la liste au modèle
-        model.addAttribute("voyageVoitures", voyageVoitures);
-        
-    } catch (Exception e) {
-        e.printStackTrace();
-        model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
-    } finally {
-        if (connection != null) {
-            try {
-                connection.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
-    return "pages/voiture/listeParVoyage";
-}
-    @GetMapping("/listeVoyage")
-public String listeVoyage(Model model) {
-    Connection connection = null;
-    try {
-        connection = MyConnection.connect();
-        
-        // Récupérer la liste des voyages depuis la base
-        List<Voyage> voyages = (List<Voyage>) DB.getAll(new Voyage(), connection);
-        
-        // Ajouter la liste des voyages au modèle
-        model.addAttribute("voyages", voyages);
-        
-    } catch (Exception e) {
-        e.printStackTrace();
-        model.addAttribute("error", "Erreur lors du chargement des voyages: " + e.getMessage());
-    } finally {
-        if (connection != null) {
-            try {
-                connection.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
-    return "pages/voiture/listeVoyage";
-}
-    @GetMapping("/typePlace")
-    public String modificationTypePlace() { 
-        return "pages/voiture/typePlaceVoyage"; 
-    }
-    @GetMapping("/ajoutPrix")
-public String ajoutPrixPourChaqueTypePlace(Model model) {
-    Connection connection = null;
-    try {
-        connection = MyConnection.connect();
-        
-        // Récupérer les types de place et voyages
-        List<TypePlace> typePlaces = (List<TypePlace>) DB.getAll(new TypePlace(), connection);
-        List<Voyage> voyages = (List<Voyage>) DB.getAll(new Voyage(), connection);
-        List<TypeClient> typeClients = (List<TypeClient>) DB.getAll(new TypeClient(), connection);
-        
-        // Ajouter au modèle
-        model.addAttribute("typePlaces", typePlaces);
-        model.addAttribute("typeClients", typeClients);
-        model.addAttribute("voyages", voyages);
-        model.addAttribute("prixDTO", new PrixTypePlaceVoyageDTO());
-        
-    } catch (Exception e) {
-        e.printStackTrace();
-        model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
-    } finally {
-        if (connection != null) {
-            try {
-                connection.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
-    return "pages/voiture/ajoutPrix";
-}
 
+    @GetMapping("/VoitureVoyage")
+    public String asignationVoitureVoyage(Model model) {
+        Connection connection = null;
+        try {
+            connection = MyConnection.connect();
+
+            // Récupérer les listes des voitures et voyages
+            List<Voiture> voitures = (List<Voiture>) DB.getAll(new Voiture(), connection);
+            List<Voyage> voyages = (List<Voyage>) DB.getAll(new Voyage(), connection);
+
+            // Ajouter les listes au modèle
+            model.addAttribute("voitures", voitures);
+            model.addAttribute("voyages", voyages);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return "pages/voiture/voitureVoyage";
+    }
+
+    @GetMapping("/listeVoitureParVoyage")
+    public String listeVoitureVoyage(Model model) {
+        Connection connection = null;
+        try {
+            connection = MyConnection.connect();
+
+            // Récupérer la liste des associations voyage-voiture
+            List<VoyageVoiture> voyageVoitures = (List<VoyageVoiture>) DB.getAll(new VoyageVoiture(), connection);
+            for (int i = 0; i < voyageVoitures.size(); i++) {
+                voyageVoitures.get(i).calculPrixMaximum(connection);
+                voyageVoitures.get(i).calculCA(connection);
+            }
+
+            String voyageVoituresTab = DB.getTableau(voyageVoitures, new VoyageVoiture(),"Liste de voiture par voyage", "Voitures assignées à chaque voyage");
+
+            // Ajouter la liste au modèle
+            model.addAttribute("voyageVoitures", voyageVoitures);
+            model.addAttribute("voyageParVoitureTab", voyageVoituresTab);
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return "pages/voiture/listeParVoyage";
+    }
+
+    @GetMapping("/listeVoyage")
+    public String listeVoyage(Model model) {
+        Connection connection = null;
+        try {
+            connection = MyConnection.connect();
+
+            // Récupérer la liste des voyages depuis la base
+            List<Voyage> voyages = (List<Voyage>) DB.getAll(new Voyage(), connection);
+
+            // Ajouter la liste des voyages au modèle
+            model.addAttribute("voyages", voyages);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("error", "Erreur lors du chargement des voyages: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return "pages/voiture/listeVoyage";
+    }
+
+    @GetMapping("/typePlace")
+    public String modificationTypePlace() {
+        return "pages/voiture/typePlaceVoyage";
+    }
+
+    @GetMapping("/ajoutPrix")
+    public String ajoutPrixPourChaqueTypePlace(Model model) {
+        Connection connection = null;
+        try {
+            connection = MyConnection.connect();
+
+            // Récupérer les types de place et voyages
+            List<TypePlace> typePlaces = (List<TypePlace>) DB.getAll(new TypePlace(), connection);
+            List<Voyage> voyages = (List<Voyage>) DB.getAll(new Voyage(), connection);
+            List<TypeClient> typeClients = (List<TypeClient>) DB.getAll(new TypeClient(), connection);
+
+            // Ajouter au modèle
+            model.addAttribute("typePlaces", typePlaces);
+            model.addAttribute("typeClients", typeClients);
+            model.addAttribute("voyages", voyages);
+            model.addAttribute("prixDTO", new PrixTypePlaceVoyageDTO());
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return "pages/voiture/ajoutPrix";
+    }
 
     @GetMapping("/creertypePlace")
-public String modificationTypePlace(Model model) {
-    // Ajouter un DTO vide pour le formulaire
-    model.addAttribute("typePlaceDTO", new TypePlaceDTO());
-    return "pages/voiture/creerTypePlace";
-}
+    public String modificationTypePlace(Model model) {
+        // Ajouter un DTO vide pour le formulaire
+        model.addAttribute("typePlaceDTO", new TypePlaceDTO());
+        return "pages/voiture/creerTypePlace";
+    }
 
-@GetMapping("/ajoutTypePlaceVoyage")
-public String ajoutTypePlaceVoyage(Model model) {
-    Connection connection = null;
-    try {
-        connection = MyConnection.connect();
-        
-        // Récupérer toutes les données nécessaires
-        List<VoyageVoiture> voyageVoitures = (List<VoyageVoiture>) DB.getAll(new VoyageVoiture(), connection);
-        List<PlaceVoiture> places = (List<PlaceVoiture>) DB.getAll(new PlaceVoiture(), connection);
-        List<TypePlace> typePlaces = (List<TypePlace>) DB.getAll(new TypePlace(), connection);
-        
-        // Ajouter au modèle
-        model.addAttribute("voyageVoitures", voyageVoitures);
-        model.addAttribute("places", places);
-        model.addAttribute("typePlaces", typePlaces);
-        model.addAttribute("typePlaceVoyageDTO", new TypePlaceVoyageDTO());
-        
-    } catch (Exception e) {
-        e.printStackTrace();
-        model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
-    } finally {
-        if (connection != null) {
-            try {
-                connection.close();
-            } catch (Exception e) {
-                e.printStackTrace();
+    @GetMapping("/ajoutTypePlaceVoyage")
+    public String ajoutTypePlaceVoyage(Model model) {
+        Connection connection = null;
+        try {
+            connection = MyConnection.connect();
+
+            // Récupérer toutes les données nécessaires
+            List<VoyageVoiture> voyageVoitures = (List<VoyageVoiture>) DB.getAll(new VoyageVoiture(), connection);
+            List<PlaceVoiture> places = (List<PlaceVoiture>) DB.getAll(new PlaceVoiture(), connection);
+            List<TypePlace> typePlaces = (List<TypePlace>) DB.getAll(new TypePlace(), connection);
+
+            // Ajouter au modèle
+            model.addAttribute("voyageVoitures", voyageVoitures);
+            model.addAttribute("places", places);
+            model.addAttribute("typePlaces", typePlaces);
+            model.addAttribute("typePlaceVoyageDTO", new TypePlaceVoyageDTO());
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
+        return "pages/voiture/ajoutTypePlaceVoyage";
     }
-    return "pages/voiture/ajoutTypePlaceVoyage";
-}
 
-@GetMapping("/typeClient")
+    @GetMapping("/typeClient")
     public String creationTypeClient(Model model) {
         return "pages/voiture/ajoutTypeClient";
     }
 
     @GetMapping("/achatClient")
-public String creationAchatClient(Model model) {
-    Connection connection = null;
-    try {
-        connection = MyConnection.connect();
-        
-        // Récupérer les types de client et les associations type-place-voyage
-        List<TypeClient> typeClients = (List<TypeClient>) DB.getAll(new TypeClient(), connection);
-        List<TypePlaceVoyage> typePlaceVoyages = (List<TypePlaceVoyage>) DB.getAll(new TypePlaceVoyage(), connection);
-        
-        // Ajouter au modèle
-        model.addAttribute("typeClients", typeClients);
-        model.addAttribute("typePlaceVoyages", typePlaceVoyages);
-        
-    } catch (Exception e) {
-        e.printStackTrace();
-        model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
-    } finally {
-        if (connection != null) {
-            try {
-                connection.close();
-            } catch (Exception e) {
-                e.printStackTrace();
+    public String creationAchatClient(Model model) {
+        Connection connection = null;
+        try {
+            connection = MyConnection.connect();
+
+            // Récupérer les types de client et les associations type-place-voyage
+            List<TypeClient> typeClients = (List<TypeClient>) DB.getAll(new TypeClient(), connection);
+            List<TypePlaceVoyage> typePlaceVoyages = (List<TypePlaceVoyage>) DB.getAll(new TypePlaceVoyage(),
+                    connection);
+
+            // Ajouter au modèle
+            model.addAttribute("typeClients", typeClients);
+            model.addAttribute("typePlaceVoyages", typePlaceVoyages);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
+        return "pages/voiture/achatClient";
     }
-    return "pages/voiture/achatClient";
 }
-}  

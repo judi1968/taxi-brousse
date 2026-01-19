@@ -7,6 +7,7 @@ import java.util.List;
 import com.project.pja.databases.generalisation.DB;
 import com.project.pja.databases.generalisation.annotation.AttributDb;
 import com.project.pja.databases.generalisation.annotation.IdDb;
+import com.project.pja.databases.generalisation.annotation.ShowTable;
 import com.project.pja.databases.generalisation.annotation.TableDb;
 
 @TableDb(name = "voyage_voiture")
@@ -97,8 +98,14 @@ public class VoyageVoiture {
         this.voyage = voyage;
     }
 
+    @ShowTable(name = "ID", numero = 1)
     public int getId() {
         return id;
+    }
+
+    @ShowTable(name = "Nom voyage", numero = 2)
+    public String getNomVoyage(){
+        return this.getVoyage().getNom();
     }
 
     public void setId(int id) {
@@ -128,5 +135,10 @@ public class VoyageVoiture {
                 ", voiture=" + (voiture != null ? voiture.getId() : null) +
                 ", voyage=" + (voyage != null ? voyage.getId() : null) +
                 '}';
+    }
+
+    @ShowTable(name = "Date Voyage", numero = 3)
+    public String getDateVoyageString(){
+        return new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(this.getVoyage().getDate());
     }
 }

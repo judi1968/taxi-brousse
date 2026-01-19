@@ -103,6 +103,8 @@
                 </div>
               </div>
             </div>
+
+            <%= (String) request.getAttribute("voyageParVoitureTab")  %>
           </div>
           <%@ include file="../../includes/footer.jsp" %>
         </div>
