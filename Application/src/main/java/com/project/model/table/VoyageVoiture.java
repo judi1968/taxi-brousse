@@ -27,6 +27,7 @@ public class VoyageVoiture {
 
     public double montantCA;
 
+    @ShowTable(name = "CA (Ar)", numero = 5)
     public double getMontantCA() {
         return montantCA;
     }
@@ -35,6 +36,7 @@ public class VoyageVoiture {
         this.montantCA = montantCa;
     }
 
+    @ShowTable(name = "Prix (Ar)", numero = 5)
     public double getPrixMaximum() {
         return prixMaximum;
     }
@@ -141,4 +143,13 @@ public class VoyageVoiture {
     public String getDateVoyageString(){
         return new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(this.getVoyage().getDate());
     }
+
+    @ShowTable(name = "Voiture", numero = 4)
+    public String getVoitureNomEtNumero(){
+        return this.getVoiture().getNom()+" - "+this.getVoiture().getNumero();
+    }
+
+
+
+
 }
