@@ -10,8 +10,6 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
 import com.project.configuration.DatabaseConfigProperties;
-import com.project.databases.MyConnection;
-import com.project.databases.generalisation.DB;
 import com.project.dto.AchatClientDTO;
 import com.project.dto.PrixTypePlaceVoyageDTO;
 import com.project.dto.TypeClientDTO;
@@ -24,6 +22,8 @@ import com.project.model.table.TypePlaceVoyage;
 import com.project.model.table.Voiture;
 import com.project.model.table.Voyage;
 import com.project.model.table.VoyageVoiture;
+import com.project.pja.databases.MyConnection;
+import com.project.pja.databases.generalisation.DB;
 
 @Controller
 public class RooterController {

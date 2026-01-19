@@ -35,6 +35,17 @@ CREATE  TABLE voyage_voiture (
 	CONSTRAINT fk_voyage_voiture_voyage FOREIGN KEY ( id_voyage ) REFERENCES voyage( id )   
  );
 
+CREATE  TABLE parametre_caclul_prix_type ( 
+	id                   serial  NOT NULL  ,
+	id_reference_type_client integer    ,
+	id_object_type_client integer    ,
+	pourcentage          double precision    ,
+	signe                integer    ,
+	CONSTRAINT pk_parametre_caclul_prix_type PRIMARY KEY ( id ),
+	CONSTRAINT fk_parametre_caclul_prix_type_type_client FOREIGN KEY ( id_reference_type_client ) REFERENCES type_client( id )   ,
+	CONSTRAINT fk_parametre_caclul_prix_type_type_client_0 FOREIGN KEY ( id_object_type_client ) REFERENCES type_client( id )   
+ );
+
 CREATE  TABLE place_voiture ( 
 	id                   serial  NOT NULL  ,
 	id_voiture           integer  NOT NULL  ,
@@ -75,6 +86,8 @@ CREATE  TABLE achat_client (
 	CONSTRAINT fk_achat_client_type_place_voyage FOREIGN KEY ( id_type_place_voyage ) REFERENCES type_place_voyage( id )   
  );
 
+INSERT INTO type_client( id, nom ) VALUES ( 1, 'Adulte');
+INSERT INTO type_client( id, nom ) VALUES ( 2, 'Enfant');
 INSERT INTO type_place( id, nom ) VALUES ( 1, 'VIP');
 INSERT INTO type_place( id, nom ) VALUES ( 2, 'Premium');
 INSERT INTO type_place( id, nom ) VALUES ( 3, 'Economique');
@@ -165,7 +178,6 @@ INSERT INTO place_voiture( id, id_voiture, numero ) VALUES ( 76, 3, '17');
 INSERT INTO place_voiture( id, id_voiture, numero ) VALUES ( 77, 3, '18');
 INSERT INTO place_voiture( id, id_voiture, numero ) VALUES ( 78, 3, '19');
 INSERT INTO place_voiture( id, id_voiture, numero ) VALUES ( 79, 3, '20');
-INSERT INTO place_voiture( id, id_voiture, numero ) VALUES ( 1, 2, '1');
 INSERT INTO place_voiture( id, id_voiture, numero ) VALUES ( 80, 2, '1');
 INSERT INTO place_voiture( id, id_voiture, numero ) VALUES ( 81, 5, '2');
 INSERT INTO place_voiture( id, id_voiture, numero ) VALUES ( 82, 6, 'p1');
@@ -186,9 +198,11 @@ INSERT INTO place_voiture( id, id_voiture, numero ) VALUES ( 96, 6, 'p15');
 INSERT INTO place_voiture( id, id_voiture, numero ) VALUES ( 97, 6, 'p16');
 INSERT INTO place_voiture( id, id_voiture, numero ) VALUES ( 98, 6, 'p17');
 INSERT INTO place_voiture( id, id_voiture, numero ) VALUES ( 99, 6, 'p18');
-INSERT INTO prix_type_place_voyage( id, id_type_place, id_voyage, montant, id_type_client ) VALUES ( 1, 1, 1, 180000.0, null);
-INSERT INTO prix_type_place_voyage( id, id_type_place, id_voyage, montant, id_type_client ) VALUES ( 2, 2, 1, 140000.0, null);
-INSERT INTO prix_type_place_voyage( id, id_type_place, id_voyage, montant, id_type_client ) VALUES ( 3, 3, 1, 90000.0, null);
+INSERT INTO place_voiture( id, id_voiture, numero ) VALUES ( 1, 2, '1');
+INSERT INTO prix_type_place_voyage( id, id_type_place, id_voyage, montant, id_type_client ) VALUES ( 1, 1, 1, 180000.0, 1);
+INSERT INTO prix_type_place_voyage( id, id_type_place, id_voyage, montant, id_type_client ) VALUES ( 2, 2, 1, 140000.0, 1);
+INSERT INTO prix_type_place_voyage( id, id_type_place, id_voyage, montant, id_type_client ) VALUES ( 3, 3, 1, 90000.0, 1);
+INSERT INTO prix_type_place_voyage( id, id_type_place, id_voyage, montant, id_type_client ) VALUES ( 4, 3, 1, 20000.0, 2);
 INSERT INTO type_place_voyage( id, id_voyage_voiture, id_place, id_type_place ) VALUES ( 1, 1, 81, 1);
 INSERT INTO type_place_voyage( id, id_voyage_voiture, id_place, id_type_place ) VALUES ( 2, 2, 82, 1);
 INSERT INTO type_place_voyage( id, id_voyage_voiture, id_place, id_type_place ) VALUES ( 3, 2, 83, 1);
@@ -208,3 +222,21 @@ INSERT INTO type_place_voyage( id, id_voyage_voiture, id_place, id_type_place ) 
 INSERT INTO type_place_voyage( id, id_voyage_voiture, id_place, id_type_place ) VALUES ( 17, 2, 97, 3);
 INSERT INTO type_place_voyage( id, id_voyage_voiture, id_place, id_type_place ) VALUES ( 18, 2, 98, 3);
 INSERT INTO type_place_voyage( id, id_voyage_voiture, id_place, id_type_place ) VALUES ( 19, 2, 99, 3);
+INSERT INTO achat_client( id, id_type_client, id_type_place_voyage ) VALUES ( 4, 1, 2);
+INSERT INTO achat_client( id, id_type_client, id_type_place_voyage ) VALUES ( 5, 2, 11);
+INSERT INTO achat_client( id, id_type_client, id_type_place_voyage ) VALUES ( 6, 1, 10);
+
+
+INSERT INTO parametre_caclul_prix_type ( id_reference_type_client,id_object_type_client,pourcentage ,signe ) VALUES 
+(1, 3, 20, 2);
+INSERT INTO parametre_caclul_prix_type ( id_reference_type_client,id_object_type_client,pourcentage ,signe ) VALUES 
+(2, 3, 20, 2);
+INSERT INTO parametre_caclul_prix_type ( id_reference_type_client,id_object_type_client,pourcentage ,signe ) VALUES 
+(3, 3, 20, 2);
+
+
+INSERT INTO prix_type_place_voyage( id_type_place, id_voyage, montant, id_type_client ) VALUES 
+(1, 1, 65000.0, 2),
+(2, 1, 50000.0, 2),
+(3, 1, 40000.0, 2);
+

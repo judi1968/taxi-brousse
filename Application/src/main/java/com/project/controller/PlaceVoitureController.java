@@ -10,10 +10,10 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import com.project.databases.MyConnection;
-import com.project.databases.generalisation.DB;
 import com.project.dto.PlaceVoitureDTO;
 import com.project.model.table.Voiture;
+import com.project.pja.databases.MyConnection;
+import com.project.pja.databases.generalisation.DB;
 import com.project.model.table.PlaceVoiture;
 
 @Controller

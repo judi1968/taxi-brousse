@@ -8,12 +8,12 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 
-import com.project.databases.MyConnection;
-import com.project.databases.generalisation.DB;
 import com.project.dto.VoyageVoitureDTO;
 import com.project.model.table.Voiture;
 import com.project.model.table.Voyage;
 import com.project.model.table.VoyageVoiture;
+import com.project.pja.databases.MyConnection;
+import com.project.pja.databases.generalisation.DB;
 
 @Controller
 public class VoyageVoitureController {

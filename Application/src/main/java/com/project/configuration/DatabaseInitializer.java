@@ -4,7 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
-import com.project.databases.MyConnection;
+import com.project.pja.databases.MyConnection;
 
 @Component
 public class DatabaseInitializer implements CommandLineRunner {

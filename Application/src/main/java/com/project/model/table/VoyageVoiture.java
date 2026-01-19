@@ -4,10 +4,10 @@ import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.project.databases.generalisation.DB;
-import com.project.databases.generalisation.annotation.AttributDb;
-import com.project.databases.generalisation.annotation.IdDb;
-import com.project.databases.generalisation.annotation.TableDb;
+import com.project.pja.databases.generalisation.DB;
+import com.project.pja.databases.generalisation.annotation.AttributDb;
+import com.project.pja.databases.generalisation.annotation.IdDb;
+import com.project.pja.databases.generalisation.annotation.TableDb;
 
 @TableDb(name = "voyage_voiture")
 public class VoyageVoiture {
@@ -69,22 +69,18 @@ public class VoyageVoiture {
         List<TypePlaceVoyage> typePlaceVoyages = (List<TypePlaceVoyage>) DB.getAllWhere(new TypePlaceVoyage(), " id_voyage_voiture = " + this.getId(), connection);
         List<AchatClient> achatClients = new ArrayList<>();
         for (TypePlaceVoyage typePlaceVoyage : typePlaceVoyages) {
-            // System.out.println("gfbd");
             List<AchatClient> achatClientsByIdPlaceVoyage = (List<AchatClient>) DB.getAllWhere(new AchatClient(), " id_type_place_voyage = "+typePlaceVoyage.getId(), connection);
             if (achatClientsByIdPlaceVoyage.size() > 0) {
-                // System.out.println("dba");
                 achatClients.add(achatClientsByIdPlaceVoyage.get(0));
             }
         }
         for (AchatClient achatClient : achatClients) {
-            System.out.println("gfadhbfah");
             String whereCalculPrix = "";
             whereCalculPrix += " id_type_place = " + achatClient.getTypePlaceVoyage().getTypePlace().getId();
             whereCalculPrix += " AND id_voyage = " + achatClient.getTypePlaceVoyage().getVoyageVoiture().getVoyage().getId();
             whereCalculPrix += " AND id_type_client = " + achatClient.getTypeClient().getId();
 
             List<PrixTypePlaceVoyage> prixTypePlaceVoyages = (List<PrixTypePlaceVoyage>) DB.getAllWhere(new PrixTypePlaceVoyage(), whereCalculPrix, connection);
-            System.out.println(prixTypePlaceVoyages.size() + " where est "+ whereCalculPrix);
             if (prixTypePlaceVoyages.size() > 0) {
                 CA += prixTypePlaceVoyages.get(0).getMontant();
             }

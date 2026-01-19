@@ -9,10 +9,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 
-import com.project.databases.MyConnection;
-import com.project.databases.generalisation.DB;
 import com.project.dto.TypeClientDTO;
 import com.project.model.table.TypeClient;
+import com.project.pja.databases.MyConnection;
+import com.project.pja.databases.generalisation.DB;
 
 @Controller
 public class TypeClientController {

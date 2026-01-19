@@ -87,3 +87,4 @@ INSERT INTO place_voiture (id_voiture, numero) VALUES
 (3, '18'),
 (3, '19'),
 (3, '20');
+

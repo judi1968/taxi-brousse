@@ -1,4 +1,4 @@
-package com.project.databases.generalisation.utils;
+package com.project.pja.databases.generalisation.utils;
 
 import java.util.List;
 

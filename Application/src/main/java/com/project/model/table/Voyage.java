@@ -1,9 +1,10 @@
 package com.project.model.table;
 
-import com.project.databases.generalisation.annotation.AttributDb;
-import com.project.databases.generalisation.annotation.IdDb;
-import com.project.databases.generalisation.annotation.TableDb;
 import java.util.Date;
+
+import com.project.pja.databases.generalisation.annotation.AttributDb;
+import com.project.pja.databases.generalisation.annotation.IdDb;
+import com.project.pja.databases.generalisation.annotation.TableDb;
 
 @TableDb(name = "voyage")
 public class Voyage {

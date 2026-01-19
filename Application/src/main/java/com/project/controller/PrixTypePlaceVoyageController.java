@@ -8,10 +8,10 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 
-import com.project.databases.MyConnection;
-import com.project.databases.generalisation.DB;
 import com.project.dto.PrixTypePlaceVoyageDTO;
 import com.project.model.table.*;
+import com.project.pja.databases.MyConnection;
+import com.project.pja.databases.generalisation.DB;
 
 @Controller
 public class PrixTypePlaceVoyageController {
@@ -28,12 +28,14 @@ public class PrixTypePlaceVoyageController {
             TypeClient typeClient = (TypeClient) DB.getById(new TypeClient(), prixDTO.getIdTypeClient(), connection);
             Voyage voyage = (Voyage) DB.getById(new Voyage(), prixDTO.getIdVoyage(), connection);
             
+
+
             // Créer l'objet PrixTypePlaceVoyage
             PrixTypePlaceVoyage prixTypePlaceVoyage = new PrixTypePlaceVoyage();
             prixTypePlaceVoyage.setTypePlace(typePlace);
             prixTypePlaceVoyage.setVoyage(voyage);
             prixTypePlaceVoyage.setTypeClient(typeClient);
-            prixTypePlaceVoyage.setMontant(prixDTO.getMontant());
+            prixTypePlaceVoyage.setMontant(prixDTO.getMontant(), connection);
             
             // Sauvegarder
             DB.save(prixTypePlaceVoyage, connection);
@@ -42,6 +44,8 @@ public class PrixTypePlaceVoyageController {
             List<TypePlace> typePlaces = (List<TypePlace>) DB.getAll(new TypePlace(), connection);
             List<Voyage> voyages = (List<Voyage>) DB.getAll(new Voyage(), connection);
             List<TypeClient> typeClients = (List<TypeClient>) DB.getAll(new TypeClient(), connection);
+
+
             
             model.addAttribute("typePlaces", typePlaces);
             model.addAttribute("voyages", voyages);

@@ -1,8 +1,8 @@
 package com.project.model.table;
 
-import com.project.databases.generalisation.annotation.AttributDb;
-import com.project.databases.generalisation.annotation.IdDb;
-import com.project.databases.generalisation.annotation.TableDb;
+import com.project.pja.databases.generalisation.annotation.AttributDb;
+import com.project.pja.databases.generalisation.annotation.IdDb;
+import com.project.pja.databases.generalisation.annotation.TableDb;
 
 @TableDb(name = "achat_client")
 public class AchatClient {
@@ -16,7 +16,7 @@ public class AchatClient {
     
     @AttributDb(name = "id_type_place_voyage")
     private TypePlaceVoyage typePlaceVoyage;
-
+ 
     public AchatClient() {
     }
 
