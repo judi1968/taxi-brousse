@@ -16,7 +16,7 @@ public class Voyage {
     @AttributDb(name = "nom")
     private String nom;
     
-    // @AttributDb(name = "date")
+    @AttributDb(name = "date")
     private Date date;
 
     public Voyage() {
