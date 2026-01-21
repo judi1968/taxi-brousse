@@ -1,0 +1,768 @@
+import psycopg2
+import os
+from datetime import datetime
+
+# --- Configuration PostgreSQL ---
+config_pg = {
+    "host": "localhost",
+    "dbname": "gestion_entreprise",
+    "user": "postgres",
+    "password": "mdpprom15",
+    "port": 5432
+}
+
+def to_camel_case(name):
+    """Convertit un nom de colonne en camelCase"""
+    parts = name.split('_')
+    return parts[0] + ''.join(part.capitalize() for part in parts[1:])
+
+def to_pascal_case(name):
+    """Convertit un nom de table en PascalCase"""
+    parts = name.split('_')
+    return ''.join(part.capitalize() for part in parts)
+
+def get_java_type(postgres_type):
+    """Convertit le type PostgreSQL en type Java pour les modèles"""
+    type_mapping = {
+        'integer': 'Integer',
+        'bigint': 'Long',
+        'double precision': 'Double',
+        'boolean': 'Boolean',
+        'character varying': 'String',
+        'text': 'String',
+        'timestamp without time zone': 'Date',
+        'date': 'Date',
+        'time without time zone': 'Time'
+    }
+    return type_mapping.get(postgres_type, 'String')
+
+def get_simple_java_type(postgres_type):
+    """Convertit le type PostgreSQL en type Java simple pour les DTOs"""
+    type_mapping = {
+        'integer': 'int',
+        'bigint': 'long',
+        'double precision': 'double',
+        'boolean': 'boolean',
+        'character varying': 'String',
+        'text': 'String',
+        'timestamp without time zone': 'String',
+        'date': 'String',
+        'time without time zone': 'String'
+    }
+    return type_mapping.get(postgres_type, 'String')
+
+def generate_model_file(table_name, columns, primary_keys, foreign_keys, output_dir):
+    """Génère un fichier de modèle Java avec annotations"""
+    class_name = to_pascal_case(table_name)
+    file_path = os.path.join(output_dir, f"{class_name}.java")
+    
+    with open(file_path, 'w', encoding='utf-8') as f:
+        # Package et imports
+        f.write("package com.project.model.table;\n\n")
+        
+        # Imports nécessaires
+        imports = set(['import com.project.pja.databases.generalisation.annotation.AttributDb;',
+                      'import com.project.pja.databases.generalisation.annotation.IdDb;',
+                      'import com.project.pja.databases.generalisation.annotation.TableDb;'])
+        
+        # Ajouter les imports pour les types
+        for col_name, col_type in columns:
+            java_type = get_java_type(col_type)
+            if java_type == 'Date':
+                imports.add('import java.util.Date;')
+            elif java_type == 'Time':
+                imports.add('import java.sql.Time;')
+        
+        # Ajouter les imports pour les foreign keys
+        for fk_col, fk_table, fk_ref_col in foreign_keys:
+            imports.add(f'import com.project.model.table.{to_pascal_case(fk_table)};')
+        
+        # Écrire les imports triés
+        for imp in sorted(imports):
+            f.write(f"{imp}\n")
+        
+        # Annotation de table
+        f.write(f"\n@TableDb(name = \"{table_name}\")\n")
+        f.write(f"public class {class_name} {{\n\n")
+        
+        # Déclaration des attributs
+        for col_name, col_type in columns:
+            java_type = get_java_type(col_type)
+            field_name = to_camel_case(col_name)
+            
+            # Vérifier si c'est une clé étrangère
+            fk_info = next((fk for fk in foreign_keys if fk[0] == col_name), None)
+            
+            if col_name in primary_keys:
+                f.write("    @IdDb\n")
+                f.write(f'    @AttributDb(name = "{col_name}")\n')
+                f.write(f"    private {java_type} {field_name};\n\n")
+            elif fk_info:
+                # Pour les foreign keys, on utilise l'objet référencé
+                fk_table_name = fk_info[1]
+                referenced_class = to_pascal_case(fk_table_name)
+                f.write(f'    @AttributDb(name = "{col_name}")\n')
+                f.write(f"    private {referenced_class} {to_camel_case(fk_table_name)}; // ← objet {referenced_class}\n\n")
+            else:
+                f.write(f'    @AttributDb(name = "{col_name}")\n')
+                f.write(f"    private {java_type} {field_name};\n\n")
+        
+        # Constructeur par défaut
+        f.write("    public {}() {{\n".format(class_name))
+        f.write("    }\n\n")
+        
+        # Constructeur avec paramètres
+        f.write("    public {}(int id".format(class_name))
+        
+        # Paramètres pour les attributs non-clés primaires
+        for col_name, col_type in columns:
+            if col_name not in primary_keys:
+                field_name = to_camel_case(col_name)
+                fk_info = next((fk for fk in foreign_keys if fk[0] == col_name), None)
+                
+                if fk_info:
+                    fk_table_name = fk_info[1]
+                    referenced_class = to_pascal_case(fk_table_name)
+                    f.write(f", {referenced_class} {to_camel_case(fk_table_name)}")
+                else:
+                    java_type = get_java_type(col_type)
+                    f.write(f", {java_type} {field_name}")
+        
+        f.write(") {\n")
+        f.write("        this.id = id;\n")
+        
+        # Initialisation des autres attributs
+        for col_name, col_type in columns:
+            if col_name not in primary_keys:
+                field_name = to_camel_case(col_name)
+                fk_info = next((fk for fk in foreign_keys if fk[0] == col_name), None)
+                
+                if fk_info:
+                    fk_table_name = fk_info[1]
+                    f.write(f"        this.{to_camel_case(fk_table_name)} = {to_camel_case(fk_table_name)};\n")
+                else:
+                    f.write(f"        this.{field_name} = {field_name};\n")
+        
+        f.write("    }\n\n")
+        
+        # Getters et Setters avec contrôles pour les types primitifs
+        for col_name, col_type in columns:
+            java_type = get_java_type(col_type)
+            field_name = to_camel_case(col_name)
+            method_name = field_name[0].upper() + field_name[1:]
+            
+            fk_info = next((fk for fk in foreign_keys if fk[0] == col_name), None)
+            
+            # Getter
+            if fk_info:
+                # Getter pour foreign key (objet)
+                fk_table_name = fk_info[1]
+                referenced_class = to_pascal_case(fk_table_name)
+                f.write(f"    public {referenced_class} get{method_name}() {{\n")
+                f.write(f"        return this.{to_camel_case(fk_table_name)};\n")
+                f.write("    }\n\n")
+            else:
+                # Getter avec conversion pour types primitifs
+                if java_type in ['Integer', 'Long', 'Double', 'Boolean']:
+                    simple_type = get_simple_java_type(col_type)
+                    f.write(f"    public {simple_type} get{method_name}() {{\n")
+                    f.write(f"        return this.{field_name} != null ? this.{field_name}.{simple_type}Value() : 0;\n")
+                    f.write("    }\n\n")
+                    
+                    # Getter qui retourne l'objet wrapper
+                    f.write(f"    public {java_type} get{method_name}Object() {{\n")
+                    f.write(f"        return this.{field_name};\n")
+                    f.write("    }\n\n")
+                else:
+                    f.write(f"    public {java_type} get{method_name}() {{\n")
+                    f.write(f"        return this.{field_name};\n")
+                    f.write("    }\n\n")
+            
+            # Setter
+            if fk_info:
+                # Setter pour foreign key
+                fk_table_name = fk_info[1]
+                referenced_class = to_pascal_case(fk_table_name)
+                f.write(f"    public void set{method_name}({referenced_class} {to_camel_case(fk_table_name)}) {{\n")
+                f.write(f"        this.{to_camel_case(fk_table_name)} = {to_camel_case(fk_table_name)};\n")
+                f.write("    }\n\n")
+            else:
+                # Setter avec validation pour String
+                if java_type == 'String':
+                    f.write(f"    public void set{method_name}({java_type} {field_name}) {{\n")
+                    f.write(f"        if ({field_name} != null && {field_name}.trim().length() > 0)\n")
+                    f.write(f"            this.{field_name} = {field_name};\n")
+                    f.write("    }\n\n")
+                else:
+                    f.write(f"    public void set{method_name}({java_type} {field_name}) {{\n")
+                    f.write(f"        this.{field_name} = {field_name};\n")
+                    f.write("    }\n\n")
+        
+        f.write("}\n")
+    
+    print(f"Modèle généré: {file_path}")
+
+def generate_dto_file(table_name, columns, primary_keys, foreign_keys, output_dir):
+    """Génère un fichier DTO Java"""
+    class_name = to_pascal_case(table_name)
+    dto_name = f"{class_name}DTO"
+    file_path = os.path.join(output_dir, f"{dto_name}.java")
+    
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write("package com.project.dto;\n\n")
+        f.write(f"public class {dto_name} {{\n")
+        
+        # Déclaration des attributs (sauf clés primaires)
+        for col_name, col_type in columns:
+            if col_name not in primary_keys:
+                java_type = get_simple_java_type(col_type)
+                field_name = to_camel_case(col_name)
+                
+                # Pour les foreign keys, on stocke l'ID
+                fk_info = next((fk for fk in foreign_keys if fk[0] == col_name), None)
+                if fk_info:
+                    fk_id_type = get_simple_java_type(next(col_type for col_name2, col_type2 in columns if col_name2 == col_name))
+                    field_name = f"{to_camel_case(fk_info[1])}Id"
+                    f.write(f"    private {fk_id_type} {field_name};\n")
+                else:
+                    f.write(f"    private {java_type} {field_name};\n")
+        
+        f.write("\n")
+        
+        # Constructeur par défaut
+        f.write("    public {}() {{\n".format(dto_name))
+        f.write("    }\n\n")
+        
+        # Constructeur avec paramètres
+        f.write("    public {}(String nom".format(dto_name))
+        
+        # Ajouter d'autres paramètres si nécessaire
+        param_count = 0
+        for col_name, col_type in columns:
+            if col_name not in primary_keys and col_name != 'nom':
+                java_type = get_simple_java_type(col_type)
+                field_name = to_camel_case(col_name)
+                fk_info = next((fk for fk in foreign_keys if fk[0] == col_name), None)
+                
+                if fk_info:
+                    fk_id_type = get_simple_java_type(next(col_type for col_name2, col_type2 in columns if col_name2 == col_name))
+                    field_name = f"{to_camel_case(fk_info[1])}Id"
+                    f.write(f", {fk_id_type} {field_name}")
+                else:
+                    f.write(f", {java_type} {field_name}")
+                param_count += 1
+        
+        if param_count > 0:
+            f.write(") {\n")
+        else:
+            f.write(") {\n")
+        
+        f.write("        this.nom = nom;\n")
+        
+        for col_name, col_type in columns:
+            if col_name not in primary_keys and col_name != 'nom':
+                field_name = to_camel_case(col_name)
+                fk_info = next((fk for fk in foreign_keys if fk[0] == col_name), None)
+                
+                if fk_info:
+                    field_name = f"{to_camel_case(fk_info[1])}Id"
+                    f.write(f"        this.{field_name} = {field_name};\n")
+                else:
+                    f.write(f"        this.{field_name} = {field_name};\n")
+        
+        f.write("    }\n\n")
+        
+        # Getters et Setters
+        for col_name, col_type in columns:
+            if col_name not in primary_keys:
+                java_type = get_simple_java_type(col_type)
+                field_name = to_camel_case(col_name)
+                method_name = field_name[0].upper() + field_name[1:]
+                
+                fk_info = next((fk for fk in foreign_keys if fk[0] == col_name), None)
+                if fk_info:
+                    field_name = f"{to_camel_case(fk_info[1])}Id"
+                    method_name = f"{to_camel_case(fk_info[1])[0].upper()}{to_camel_case(fk_info[1])[1:]}Id"
+                    fk_id_type = get_simple_java_type(next(col_type for col_name2, col_type2 in columns if col_name2 == col_name))
+                
+                # Getter
+                if fk_info:
+                    f.write(f"    public {fk_id_type} get{method_name}() {{\n")
+                else:
+                    f.write(f"    public {java_type} get{method_name}() {{\n")
+                f.write(f"        return {field_name};\n")
+                f.write("    }\n\n")
+                
+                # Setter
+                if fk_info:
+                    f.write(f"    public void set{method_name}({fk_id_type} {field_name}) {{\n")
+                else:
+                    f.write(f"    public void set{method_name}({java_type} {field_name}) {{\n")
+                f.write(f"        this.{field_name} = {field_name};\n")
+                f.write("    }\n\n")
+        
+        f.write("}\n")
+    
+    print(f"DTO généré: {file_path}")
+
+def generate_controller_file(table_name, columns, primary_keys, foreign_keys, output_dir):
+    """Génère un fichier contrôleur Spring"""
+    class_name = to_pascal_case(table_name)
+    controller_name = f"{class_name}Controller"
+    dto_name = f"{class_name}DTO"
+    file_path = os.path.join(output_dir, f"{controller_name}.java")
+    
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write("package com.project.controller;\n\n")
+        f.write("import java.sql.Connection;\n")
+        f.write("import java.util.List;\n\n")
+        f.write("import org.springframework.stereotype.Controller;\n")
+        f.write("import org.springframework.ui.Model;\n")
+        f.write("import org.springframework.web.bind.annotation.GetMapping;\n")
+        f.write("import org.springframework.web.bind.annotation.ModelAttribute;\n")
+        f.write("import org.springframework.web.bind.annotation.PostMapping;\n\n")
+        f.write(f"import com.project.dto.{dto_name};\n")
+        f.write(f"import com.project.model.table.{class_name};\n")
+        f.write("import com.project.pja.databases.MyConnection;\n")
+        f.write("import com.project.pja.databases.generalisation.DB;\n\n")
+        
+        f.write("@Controller\n")
+        f.write(f"public class {controller_name} {{\n\n")
+        
+        # Méthode POST pour sauvegarder
+        f.write(f"    @PostMapping(\"/save{class_name}\")\n")
+        f.write(f"    public String save{class_name}(@ModelAttribute {dto_name} {table_name}DTO, Model model) {{\n")
+        f.write("        \n")
+        f.write("        Connection connection = null;\n")
+        f.write("        try {\n")
+        f.write("            // Établir la connexion\n")
+        f.write("            connection = MyConnection.connect();\n")
+        f.write("            \n")
+        f.write(f"            // Créer l'objet {class_name} à partir du DTO\n")
+        f.write(f"            {class_name} {table_name} = new {class_name}();\n")
+        
+        # Attribution des valeurs depuis le DTO
+        for col_name, col_type in columns:
+            if col_name not in primary_keys:
+                field_name = to_camel_case(col_name)
+                fk_info = next((fk for fk in foreign_keys if fk[0] == col_name), None)
+                
+                if fk_info:
+                    # Pour les foreign keys, on récupère l'objet complet
+                    fk_table_name = fk_info[1]
+                    referenced_class = to_pascal_case(fk_table_name)
+                    fk_field_name = f"{to_camel_case(fk_table_name)}Id"
+                    f.write(f"            \n")
+                    f.write(f"            // Récupération de l'objet {referenced_class}\n")
+                    f.write(f"            if ({table_name}DTO.get{referenced_class}Id() != null) {{\n")
+                    f.write(f"                {referenced_class} {to_camel_case(fk_table_name)} = {referenced_class}.getById({table_name}DTO.get{referenced_class}Id(), connection);\n")
+                    f.write(f"                {table_name}.set{referenced_class}({to_camel_case(fk_table_name)});\n")
+                    f.write("            }\n")
+                else:
+                    f.write(f"            {table_name}.set{field_name[0].upper()}{field_name[1:]}({table_name}DTO.get{field_name[0].upper()}{field_name[1:]}());\n")
+        
+        f.write("            \n")
+        f.write("            // Sauvegarder dans la base de données\n")
+        f.write(f"            DB.save({table_name}, connection);\n")
+        f.write("            \n")
+        f.write("            // Message de succès\n")
+        f.write("            model.addAttribute(\"success\", \"{} enregistré avec succès !\");\n".format(class_name))
+        f.write(f"            model.addAttribute(\"{table_name}DTO\", new {dto_name}()); // Réinitialiser le formulaire\n")
+        f.write("            \n")
+        f.write("        } catch (Exception e) {\n")
+        f.write("            e.printStackTrace();\n")
+        f.write("            model.addAttribute(\"error\", \"Erreur lors de l'enregistrement : \" + e.getMessage());\n")
+        f.write(f"            model.addAttribute(\"{table_name}DTO\", {table_name}DTO); // Garder les données saisies\n")
+        f.write("        } finally {\n")
+        f.write("            if (connection != null) {\n")
+        f.write("                try {\n")
+        f.write("                    connection.close();\n")
+        f.write("                } catch (Exception e) {\n")
+        f.write("                    e.printStackTrace();\n")
+        f.write("                }\n")
+        f.write("            }\n")
+        f.write("        }\n")
+        f.write("        \n")
+        f.write(f"        return \"pages/{table_name}/creation\";\n")
+        f.write("    }\n\n")
+        
+        # Méthode GET pour lister
+        f.write(f"    @GetMapping(\"/liste{class_name}\")\n")
+        f.write(f"    public String liste{class_name}(Model model) {{\n")
+        f.write("        Connection connection = null;\n")
+        f.write("        try {\n")
+        f.write("            connection = MyConnection.connect();\n")
+        f.write("\n")
+        f.write(f"            // Récupérer la liste des {table_name}s depuis la base\n")
+        f.write(f"            List<{class_name}> {table_name}s = (List<{class_name}>) DB.getAll(new {class_name}(), connection);\n")
+        f.write("\n")
+        f.write(f"            // Ajouter la liste des {table_name}s au modèle\n")
+        f.write(f"            model.addAttribute(\"{table_name}s\", {table_name}s);\n")
+        f.write("\n")
+        f.write("        } catch (Exception e) {\n")
+        f.write("            e.printStackTrace();\n")
+        f.write(f"            model.addAttribute(\"error\", \"Erreur lors du chargement des {table_name}s: \" + e.getMessage());\n")
+        f.write("        } finally {\n")
+        f.write("            if (connection != null) {\n")
+        f.write("                try {\n")
+        f.write("                    connection.close();\n")
+        f.write("                } catch (Exception e) {\n")
+        f.write("                    e.printStackTrace();\n")
+        f.write("                }\n")
+        f.write("            }\n")
+        f.write("        }\n")
+        f.write(f"        return \"pages/{table_name}/liste{class_name}\";\n")
+        f.write("    }\n")
+        
+        f.write("}\n")
+    
+    print(f"Contrôleur généré: {file_path}")
+
+def generate_jsp_list_file(table_name, columns, primary_keys, foreign_keys, output_dir):
+    """Génère un fichier JSP pour lister les éléments"""
+    class_name = to_pascal_case(table_name)
+    file_path = os.path.join(output_dir, f"liste{class_name}.jsp")
+    
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write('<%@ page contentType="text/html;charset=UTF-8" %>\n')
+        f.write('<%@ page import="java.util.List" %>\n')
+        f.write(f'<%@ page import="com.project.model.table.{class_name}" %>\n')
+        
+        # Ajouter l'import pour Date si nécessaire
+        has_date = any(get_java_type(col_type) == 'Date' for col_name, col_type in columns)
+        if has_date:
+            f.write('<%@ page import="java.text.SimpleDateFormat" %>\n')
+        
+        f.write('<%\n')
+        f.write(f'    List<{class_name}> {table_name}s = (List<{class_name}>) request.getAttribute("{table_name}s");\n')
+        f.write('    String error = (String) request.getAttribute("error");\n')
+        if has_date:
+            f.write('    SimpleDateFormat sdf = new SimpleDateFormat("dd/MM/yyyy HH:mm");\n')
+        f.write('%>\n')
+        f.write('<!DOCTYPE html>\n')
+        f.write('<html lang="en">\n')
+        f.write('  <head>\n')
+        f.write('    <meta charset="utf-8">\n')
+        f.write('    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">\n')
+        f.write(f'    <title>Liste des {table_name}s</title>\n')
+        f.write('    <%@ include file="../../includes/css.jsp" %>\n')
+        f.write('  </head>\n')
+        f.write('  <body>\n')
+        f.write('    <div class="container-scroller">\n')
+        f.write('      <%@ include file="../../includes/navbar.jsp" %>\n')
+        f.write('      <div class="container-fluid page-body-wrapper">\n')
+        f.write('        <%@ include file="../../includes/header.jsp" %>\n')
+        f.write('        <div class="main-panel">\n')
+        f.write('          <div class="content-wrapper">\n')
+        f.write('            <div class="page-header">\n')
+        f.write(f'              <h3 class="page-title">Liste des {table_name}s</h3>\n')
+        f.write('            </div>\n')
+        f.write('            \n')
+        f.write('            <% if (error != null) { %>\n')
+        f.write('            <div class="alert alert-danger alert-dismissible fade show" role="alert">\n')
+        f.write('              <%= error %>\n')
+        f.write('              <button type="button" class="close" data-dismiss="alert" aria-label="Close">\n')
+        f.write('                <span aria-hidden="true">&times;</span>\n')
+        f.write('              </button>\n')
+        f.write('            </div>\n')
+        f.write('            <% } %>\n')
+        f.write('            \n')
+        f.write('            <div class="row">\n')
+        f.write('              <div class="col-lg-12 grid-margin stretch-card">\n')
+        f.write('                <div class="card">\n')
+        f.write('                  <div class="card-body">\n')
+        f.write(f'                    <h4 class="card-title">Liste des {table_name}s</h4>\n')
+        f.write(f'                    <p class="card-description">Tous les {table_name}s disponibles</p>\n')
+        f.write('                    <div class="table-responsive">\n')
+        f.write('                      <table class="table table-hover table-striped">\n')
+        f.write('                        <thead>\n')
+        f.write('                          <tr>\n')
+        
+        # En-têtes de colonnes
+        for col_name, col_type in columns:
+            field_name = to_camel_case(col_name)
+            f.write(f'                            <th>{field_name[0].upper()}{field_name[1:]}</th>\n')
+        
+        f.write('                          </tr>\n')
+        f.write('                        </thead>\n')
+        f.write('                        <tbody>\n')
+        f.write(f'                          <% if ({table_name}s != null && !{table_name}s.isEmpty()) {{\n')
+        f.write(f'                               for ({class_name} {table_name} : {table_name}s) {{ \n')
+        f.write('%>\n')
+        f.write('                          <tr>\n')
+        
+        # Contenu des colonnes
+        for col_name, col_type in columns:
+            field_name = to_camel_case(col_name)
+            method_name = field_name[0].upper() + field_name[1:]
+            
+            fk_info = next((fk for fk in foreign_keys if fk[0] == col_name), None)
+            
+            if fk_info:
+                # Pour les foreign keys, afficher le nom de l'objet lié
+                fk_table_name = fk_info[1]
+                f.write(f'                            <td>\n')
+                f.write(f'                              <% if ({table_name}.get{method_name}() != null) {{ %>\n')
+                f.write(f'                                <%= {table_name}.get{method_name}().getNom() %>\n')
+                f.write('                              <% } else { %>\n')
+                f.write('                                Non défini\n')
+                f.write('                              <% } %>\n')
+                f.write('                            </td>\n')
+            elif get_java_type(col_type) == 'Date':
+                f.write(f'                            <td>\n')
+                f.write(f'                              <% if ({table_name}.get{method_name}Object() != null) {{ %>\n')
+                f.write('                                <%= sdf.format({}.get{}Object()) %>'.format(table_name, method_name))
+                f.write('\n')
+                f.write('                              <% } else { %>\n')
+                f.write('                                Non défini\n')
+                f.write('                              <% } %>\n')
+                f.write('                            </td>\n')
+            else:
+                f.write(f'                            <td><%= {table_name}.get{method_name}() %></td>\n')
+        
+        f.write('                          </tr>\n')
+        f.write('<% }\n')
+        f.write('                             } else { %>\n')
+        f.write('                          <tr>\n')
+        f.write(f'                            <td colspan="{len(columns)}" class="text-center">Aucun {table_name} trouvé</td>\n')
+        f.write('                          </tr>\n')
+        f.write('                          <% } %>\n')
+        f.write('                        </tbody>\n')
+        f.write('                      </table>\n')
+        f.write('                    </div>\n')
+        f.write('                  </div>\n')
+        f.write('                </div>\n')
+        f.write('              </div>\n')
+        f.write('            </div>\n')
+        f.write('          </div>\n')
+        f.write('          <%@ include file="../../includes/footer.jsp" %>\n')
+        f.write('        </div>\n')
+        f.write('      </div>\n')
+        f.write('    </div>\n')
+        f.write('    <%@ include file="../../includes/js.jsp" %>\n')
+        f.write('  </body>\n')
+        f.write('</html>\n')
+    
+    print(f"JSP liste généré: {file_path}")
+
+def generate_jsp_create_file(table_name, columns, primary_keys, foreign_keys, output_dir):
+    """Génère un fichier JSP pour la création"""
+    class_name = to_pascal_case(table_name)
+    file_path = os.path.join(output_dir, f"creation{class_name}.jsp")
+    
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write('<%@ page contentType="text/html;charset=UTF-8" %>\n')
+        f.write('<%@ page import="java.util.List" %>\n')
+        
+        # Importer les modèles nécessaires pour les select
+        for fk_col, fk_table, fk_ref_col in foreign_keys:
+            f.write(f'<%@ page import="com.project.model.table.{to_pascal_case(fk_table)}" %>\n')
+        
+        f.write('<%\n')
+        f.write('    String success = (String) request.getAttribute("success");\n')
+        f.write('    String error = (String) request.getAttribute("error");\n')
+        
+        # Variables pour les select
+        for fk_col, fk_table, fk_ref_col in foreign_keys:
+            f.write(f'    List<{to_pascal_case(fk_table)}> {fk_table}s = (List<{to_pascal_case(fk_table)}>) request.getAttribute("{fk_table}s");\n')
+        
+        f.write('%>\n')
+        f.write('<!DOCTYPE html>\n')
+        f.write('<html lang="en">\n')
+        f.write('  <head>\n')
+        f.write('    <meta charset="utf-8">\n')
+        f.write('    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">\n')
+        f.write(f'    <title>Creation {class_name}</title>\n')
+        f.write('    <%@ include file="../../includes/css.jsp" %>\n')
+        f.write('  </head>\n')
+        f.write('  <body>\n')
+        f.write('    <div class="container-scroller">\n')
+        f.write('      <%@ include file="../../includes/navbar.jsp" %>\n')
+        f.write('      <div class="container-fluid page-body-wrapper">\n')
+        f.write('        <%@ include file="../../includes/header.jsp" %>\n')
+        f.write('        <div class="main-panel">\n')
+        f.write('          <div class="content-wrapper">\n')
+        f.write('            <div class="page-header">\n')
+        f.write(f'              <h3 class="page-title">Creation {class_name}</h3>\n')
+        f.write('            </div>\n')
+        f.write('            \n')
+        f.write('            <!-- Messages d\'alerte -->\n')
+        f.write('            <% if (success != null) { %>\n')
+        f.write('            <div class="alert alert-success alert-dismissible fade show" role="alert">\n')
+        f.write('              <%= success %>\n')
+        f.write('              <button type="button" class="close" data-dismiss="alert" aria-label="Close">\n')
+        f.write('                <span aria-hidden="true">&times;</span>\n')
+        f.write('              </button>\n')
+        f.write('            </div>\n')
+        f.write('            <% } %>\n')
+        f.write('            \n')
+        f.write('            <% if (error != null) { %>\n')
+        f.write('            <div class="alert alert-danger alert-dismissible fade show" role="alert">\n')
+        f.write('              <%= error %>\n')
+        f.write('              <button type="button" class="close" data-dismiss="alert" aria-label="Close">\n')
+        f.write('                <span aria-hidden="true">&times;</span>\n')
+        f.write('              </button>\n')
+        f.write('            </div>\n')
+        f.write('            <% } %>\n')
+        f.write('            \n')
+        f.write('            <div class="row">\n')
+        f.write('              <div class="col-md-12 grid-margin stretch-card">\n')
+        f.write('                <div class="card">\n')
+        f.write('                  <div class="card-body">\n')
+        f.write(f'                    <h4 class="card-title">Création de {class_name}</h4>\n')
+        f.write(f'                    <p class="card-description">Ajouter un nouveau {table_name}</p>\n')
+        f.write(f'                    <form class="forms-sample" action="save{class_name}" method="post">\n')
+        f.write('                      <div class="row">\n')
+        f.write('                        <div class="col-md-6">\n')
+        
+        # Champs du formulaire
+        field_count = 0
+        for col_name, col_type in columns:
+            if col_name not in primary_keys:
+                field_name = to_camel_case(col_name)
+                display_name = field_name[0].upper() + field_name[1:]
+                fk_info = next((fk for fk in foreign_keys if fk[0] == col_name), None)
+                
+                f.write('                          <div class="form-group row">\n')
+                
+                if fk_info:
+                    # Select pour foreign key
+                    fk_table_name = fk_info[1]
+                    f.write(f'                            <label for="{field_name}" class="col-sm-3 col-form-label">{display_name}</label>\n')
+                    f.write('                            <div class="col-sm-9">\n')
+                    f.write(f'                              <select class="form-control" id="{field_name}" name="{field_name}" required>\n')
+                    f.write(f'                                <option value="">Sélectionnez un {display_name}</option>\n')
+                    f.write(f'                                <% if ({fk_table_name}s != null) {{\n')
+                    f.write(f'                                    for ({to_pascal_case(fk_table_name)} {fk_table_name} : {fk_table_name}s) {{ \n')
+                    f.write('%>\n')
+                    f.write(f'                                <option value="<%= {fk_table_name}.getId() %>"> \n')
+                    f.write('                                       \n')
+                    f.write(f'                                  <%= {fk_table_name}.getNom() %>\n')
+                    f.write('                                </option>\n')
+                    f.write('<% }\n')
+                    f.write('                                } %>\n')
+                    f.write('                              </select>\n')
+                else:
+                    # Input standard
+                    f.write(f'                            <label for="{field_name}" class="col-sm-3 col-form-label">{display_name}</label>\n')
+                    f.write('                            <div class="col-sm-9">\n')
+                    
+                    if get_java_type(col_type) == 'Date':
+                        f.write(f'                              <input type="date" class="form-control" id="{field_name}" name="{field_name}" required>\n')
+                    elif get_java_type(col_type) in ['Integer', 'Long', 'Double']:
+                        f.write(f'                              <input type="number" class="form-control" id="{field_name}" name="{field_name}" required>\n')
+                    elif get_java_type(col_type) == 'Boolean':
+                        f.write(f'                              <select class="form-control" id="{field_name}" name="{field_name}" required>\n')
+                        f.write('                                <option value="true">Oui</option>\n')
+                        f.write('                                <option value="false">Non</option>\n')
+                        f.write('                              </select>\n')
+                    else:
+                        f.write(f'                              <input type="text" class="form-control" id="{field_name}" name="{field_name}" required>\n')
+                
+                f.write('                            </div>\n')
+                f.write('                          </div>\n')
+                field_count += 1
+        
+        f.write('                        </div>\n')
+        f.write('                      </div>\n')
+        f.write('                      <button type="submit" class="btn btn-primary me-2">Enregistrer</button>\n')
+        f.write(f'                      <a href="/{table_name}" class="btn btn-dark">Annuler</a>\n')
+        f.write('                    </form>\n')
+        f.write('                  </div>\n')
+        f.write('                </div>\n')
+        f.write('              </div>\n')
+        f.write('            </div>\n')
+        f.write('          </div>\n')
+        f.write('          <%@ include file="../../includes/footer.jsp" %>\n')
+        f.write('        </div>\n')
+        f.write('      </div>\n')
+        f.write('    </div>\n')
+        f.write('    <%@ include file="../../includes/js.jsp" %>\n')
+        f.write('  </body>\n')
+        f.write('</html>\n')
+    
+    print(f"JSP création généré: {file_path}")
+
+def main():
+    try:
+        conn = psycopg2.connect(**config_pg)
+        cur = conn.cursor()
+
+        # Créer les répertoires de sortie
+        output_dirs = {
+            "models": "generated/models",
+            "dtos": "generated/dtos",
+            "controllers": "generated/controllers",
+            "jsp": "generated/jsp"
+        }
+        
+        for dir_name, dir_path in output_dirs.items():
+            os.makedirs(dir_path, exist_ok=True)
+
+        # Récupérer toutes les tables (sauf les vues)
+        cur.execute("""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_type = 'BASE TABLE'
+            ORDER BY table_name;
+        """)
+        tables = cur.fetchall()
+
+        for table_name, in tables:
+            print(f"\nTraitement de la table: {table_name}")
+            
+            # Colonnes + types
+            cur.execute("""
+                SELECT column_name, data_type
+                FROM information_schema.columns
+                WHERE table_name = %s
+                ORDER BY ordinal_position;
+            """, (table_name,))
+            columns = cur.fetchall()
+
+            # Clés primaires
+            cur.execute("""
+                SELECT kcu.column_name
+                FROM information_schema.table_constraints tc
+                JOIN information_schema.key_column_usage kcu
+                    ON tc.constraint_name = kcu.constraint_name
+                WHERE tc.constraint_type = 'PRIMARY KEY'
+                  AND tc.table_name = %s;
+            """, (table_name,))
+            primary_keys = [row[0] for row in cur.fetchall()]
+
+            # Clés étrangères
+            cur.execute("""
+                SELECT
+                    kcu.column_name,
+                    ccu.table_name AS foreign_table,
+                    ccu.column_name AS foreign_column
+                FROM information_schema.table_constraints AS tc
+                JOIN information_schema.key_column_usage AS kcu
+                    ON tc.constraint_name = kcu.constraint_name
+                JOIN information_schema.constraint_column_usage AS ccu
+                    ON ccu.constraint_name = tc.constraint_name
+                WHERE tc.constraint_type = 'FOREIGN KEY'
+                  AND tc.table_name = %s;
+            """, (table_name,))
+            foreign_keys = cur.fetchall()
+
+            # Générer les fichiers
+            generate_model_file(table_name, columns, primary_keys, foreign_keys, output_dirs["models"])
+            generate_dto_file(table_name, columns, primary_keys, foreign_keys, output_dirs["dtos"])
+            generate_controller_file(table_name, columns, primary_keys, foreign_keys, output_dirs["controllers"])
+            generate_jsp_list_file(table_name, columns, primary_keys, foreign_keys, output_dirs["jsp"])
+            generate_jsp_create_file(table_name, columns, primary_keys, foreign_keys, output_dirs["jsp"])
+
+        print(f"\nGénération terminée! Les fichiers sont dans le dossier: generated/")
+
+    except Exception as e:
+        print("Erreur PostgreSQL :", e)
+    finally:
+        if conn:
+            cur.close()
+            conn.close()
+
+if __name__ == "__main__":
+    main()
