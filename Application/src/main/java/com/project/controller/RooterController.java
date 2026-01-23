@@ -8,20 +8,27 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import com.project.configuration.DatabaseConfigProperties;
 import com.project.dto.AchatClientDTO;
+import com.project.dto.FiltreCaDiffusion;
+import com.project.dto.MouvementPrixPubDTO;
 import com.project.dto.PrixTypePlaceVoyageDTO;
 import com.project.dto.TypeClientDTO;
 import com.project.dto.TypePlaceDTO;
 import com.project.dto.TypePlaceVoyageDTO;
+import com.project.model.table.DiffusionSociete;
 import com.project.model.table.PlaceVoiture;
+import com.project.model.table.Societe;
 import com.project.model.table.TypeClient;
 import com.project.model.table.TypePlace;
 import com.project.model.table.TypePlaceVoyage;
 import com.project.model.table.Voiture;
 import com.project.model.table.Voyage;
 import com.project.model.table.VoyageVoiture;
+import com.project.model.view.DiffusionSocieteCA;
 import com.project.pja.databases.MyConnection;
 import com.project.pja.databases.generalisation.DB;
 
@@ -166,7 +173,12 @@ public class RooterController {
             List<VoyageVoiture> voyageVoitures = (List<VoyageVoiture>) DB.getAll(new VoyageVoiture(), connection);
             for (int i = 0; i < voyageVoitures.size(); i++) {
                 voyageVoitures.get(i).calculPrixMaximum(connection);
+                voyageVoitures.get(i).calculCAPub(connection);
                 voyageVoitures.get(i).calculCA(connection);
+                voyageVoitures.get(i).calculMontantTotaleCA(connection);
+                voyageVoitures.get(i).calculCAPubTotaleAPayer(connection);
+                voyageVoitures.get(i).calculResteCAPubAPayer();
+                
             }
 
             String voyageVoituresTab = DB.getTableau(voyageVoitures, new VoyageVoiture(),"Liste de voiture par voyage", "Voitures assignées à chaque voyage");
@@ -326,4 +338,139 @@ public class RooterController {
         }
         return "pages/voiture/achatClient";
     }
+
+    @GetMapping("/ajoutSociete")
+    public String addSociete(Model model) {
+        Connection connection = null;
+        try {
+            connection = MyConnection.connect();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return "pages/societe/creationSociete";
+    }
+    @GetMapping("/ajoutPrixPub")
+    public String ajoutPrixPub(Model model) {
+        Connection connection = null;
+        try {
+            connection = MyConnection.connect();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return "pages/mouvement_prix_pub/creationMouvementPrixPub";
+    }
+
+    
+
+    @GetMapping("/ajoutDiffusion")
+    public String ajoutDiffusion(Model model) {
+        Connection connection = null;
+        try {
+            connection = MyConnection.connect();
+            List<VoyageVoiture> voyageVoitures = (List<VoyageVoiture>) DB.getAll(new VoyageVoiture(), connection);
+             List<Societe> societes = (List<Societe>) DB.getAll(new Societe(),
+                    connection);
+
+            // Ajouter au modèle
+            model.addAttribute("societes", societes);
+            model.addAttribute("voyageVoitures", voyageVoitures);
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return "pages/diffusion_societe/creationDiffusionSociete";
+    }
+
+    @GetMapping("/payerDiffusion")
+    public String payerDiffusion(Model model) {
+        Connection connection = null;
+        try {
+            connection = MyConnection.connect();
+             List<Societe> societes = (List<Societe>) DB.getAll(new Societe(),
+                    connection);
+
+            // Ajouter au modèle
+            model.addAttribute("societes", societes);
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return "pages/payement_diffusion/creationPayementDiffusion";
+    }
+
+
+    @GetMapping("/caPublicite")
+    public String caPublicite(@RequestParam(required = false) String dateDebut,
+    @RequestParam(required = false) String dateFin,
+    @RequestParam(required = false) String moisAnne,
+    Model model) {
+        Connection connection = null;
+        try {
+            connection = MyConnection.connect();
+            String where = " 1 = 1 ";
+            if (moisAnne != null) {
+                System.out.println(moisAnne);
+            }
+            // Récupérer la liste des associations voyage-voiture
+            List<DiffusionSocieteCA> diffusionSocieteCAs = (List<DiffusionSocieteCA>) DB.getAllWhere(new DiffusionSocieteCA(), where ,connection);
+            double montantTotale = 0;
+            for (DiffusionSocieteCA diffusionSocieteCA : diffusionSocieteCAs) {
+                montantTotale += diffusionSocieteCA.getMontantTotale();
+            }
+
+            String diffusionSocieteCAsTab = DB.getTableau(diffusionSocieteCAs, new DiffusionSocieteCA(),"Montant totale : " +montantTotale+"Ar", "Avec leurs CA");
+
+            // Ajouter la liste au modèle
+            model.addAttribute("caTab", diffusionSocieteCAsTab);
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return "pages/diffusion/ca";
+    }
+
 }

@@ -109,6 +109,24 @@
     <span class="menu-icon">
       <i class="mdi mdi-format-list-bulleted"></i>
     </span>
+    <span class="menu-title">Diffusion pub</span>
+    <i class="menu-arrow"></i>
+  </a>
+  <div class="collapse" id="ui-liste">
+    <ul class="nav flex-column sub-menu">
+      <li class="nav-item"> <a class="nav-link" href="ajoutSociete">Ajout societe</a></li>
+      <li class="nav-item"> <a class="nav-link" href="ajoutPrixPub">Ajout prix pub</a></li>
+      <li class="nav-item"> <a class="nav-link" href="ajoutDiffusion">Ajout diffusion</a></li>
+      <li class="nav-item"> <a class="nav-link" href="caPublicite">CA publicite</a></li>
+      <li class="nav-item"> <a class="nav-link" href="payerDiffusion">Payement</a></li>
+    </ul>
+  </div>
+</li>
+<li class="nav-item menu-items">
+  <a class="nav-link" data-bs-toggle="collapse" href="#ui-liste" aria-expanded="false" aria-controls="ui-liste">
+    <span class="menu-icon">
+      <i class="mdi mdi-format-list-bulleted"></i>
+    </span>
     <span class="menu-title">Listes</span>
     <i class="menu-arrow"></i>
   </a>

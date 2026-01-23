@@ -1,6 +1,5 @@
 package com.project.pja.databases.generalisation;
 
-import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -16,8 +15,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.project.model.table.VoyageVoiture;
-import com.project.pja.databases.MyConnection;
 import com.project.pja.databases.generalisation.annotation.AttributDb;
 import com.project.pja.databases.generalisation.annotation.IdDb;
 import com.project.pja.databases.generalisation.annotation.ShowTable;

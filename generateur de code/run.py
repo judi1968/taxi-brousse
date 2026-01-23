@@ -1,11 +1,11 @@
 import psycopg2
 import os
-from datetime import datetime
+import re
 
 # --- Configuration PostgreSQL ---
 config_pg = {
     "host": "localhost",
-    "dbname": "gestion_entreprise",
+    "dbname": "taxi_brousse",
     "user": "postgres",
     "password": "mdpprom15",
     "port": 5432
@@ -20,6 +20,22 @@ def to_pascal_case(name):
     """Convertit un nom de table en PascalCase"""
     parts = name.split('_')
     return ''.join(part.capitalize() for part in parts)
+
+def extract_name_no_id(field_name: str) -> str:
+    """
+    Transforme:
+    - IdPersonne        -> personne
+    - id_personne       -> personne
+    - IdIdentifiant     -> identifiant
+    - IdVoyageVoiture   -> voyage_voiture
+    - idVoyageVoiture   -> voyage_voiture
+    """
+    # 1. Supprimer uniquement le Id / id_ au début
+    name = re.sub(r'^id_?', '', field_name, flags=re.IGNORECASE)
+    # 2. Si CamelCase → snake_case
+    name = re.sub(r'(?<!^)(?=[A-Z])', '_', name)
+    # 3. Tout en minuscule
+    return name.lower()
 
 def get_java_type(postgres_type):
     """Convertit le type PostgreSQL en type Java pour les modèles"""
@@ -51,14 +67,19 @@ def get_simple_java_type(postgres_type):
     }
     return type_mapping.get(postgres_type, 'String')
 
-def generate_model_file(table_name, columns, primary_keys, foreign_keys, output_dir):
+def generate_model_file(table_name, columns, primary_keys, foreign_keys, output_dir, model_package):
     """Génère un fichier de modèle Java avec annotations"""
     class_name = to_pascal_case(table_name)
-    file_path = os.path.join(output_dir, f"{class_name}.java")
+    # Créer les sous-dossiers selon le package
+    package_path = model_package.replace('.', '/')
+    full_output_dir = os.path.join(output_dir, package_path)
+    os.makedirs(full_output_dir, exist_ok=True)
+    
+    file_path = os.path.join(full_output_dir, f"{class_name}.java")
     
     with open(file_path, 'w', encoding='utf-8') as f:
-        # Package et imports
-        f.write("package com.project.model.table;\n\n")
+        # Package
+        f.write(f"package {model_package};\n\n")
         
         # Imports nécessaires
         imports = set(['import com.project.pja.databases.generalisation.annotation.AttributDb;',
@@ -75,7 +96,7 @@ def generate_model_file(table_name, columns, primary_keys, foreign_keys, output_
         
         # Ajouter les imports pour les foreign keys
         for fk_col, fk_table, fk_ref_col in foreign_keys:
-            imports.add(f'import com.project.model.table.{to_pascal_case(fk_table)};')
+            imports.add(f'import {model_package}.{to_pascal_case(fk_table)};')
         
         # Écrire les imports triés
         for imp in sorted(imports):
@@ -101,8 +122,9 @@ def generate_model_file(table_name, columns, primary_keys, foreign_keys, output_
                 # Pour les foreign keys, on utilise l'objet référencé
                 fk_table_name = fk_info[1]
                 referenced_class = to_pascal_case(fk_table_name)
+                object_field_name = extract_name_no_id(field_name)
                 f.write(f'    @AttributDb(name = "{col_name}")\n')
-                f.write(f"    private {referenced_class} {to_camel_case(fk_table_name)}; // ← objet {referenced_class}\n\n")
+                f.write(f"    private {referenced_class} {object_field_name}; // ← objet {referenced_class}\n\n")
             else:
                 f.write(f'    @AttributDb(name = "{col_name}")\n')
                 f.write(f"    private {java_type} {field_name};\n\n")
@@ -112,7 +134,7 @@ def generate_model_file(table_name, columns, primary_keys, foreign_keys, output_
         f.write("    }\n\n")
         
         # Constructeur avec paramètres
-        f.write("    public {}(int id".format(class_name))
+        constructor_params = ["int id"]
         
         # Paramètres pour les attributs non-clés primaires
         for col_name, col_type in columns:
@@ -123,12 +145,13 @@ def generate_model_file(table_name, columns, primary_keys, foreign_keys, output_
                 if fk_info:
                     fk_table_name = fk_info[1]
                     referenced_class = to_pascal_case(fk_table_name)
-                    f.write(f", {referenced_class} {to_camel_case(fk_table_name)}")
+                    object_field_name = extract_name_no_id(field_name)
+                    constructor_params.append(f"{referenced_class} {object_field_name}")
                 else:
                     java_type = get_java_type(col_type)
-                    f.write(f", {java_type} {field_name}")
+                    constructor_params.append(f"{java_type} {field_name}")
         
-        f.write(") {\n")
+        f.write("    public {}({}) {{\n".format(class_name, ", ".join(constructor_params)))
         f.write("        this.id = id;\n")
         
         # Initialisation des autres attributs
@@ -139,29 +162,40 @@ def generate_model_file(table_name, columns, primary_keys, foreign_keys, output_
                 
                 if fk_info:
                     fk_table_name = fk_info[1]
-                    f.write(f"        this.{to_camel_case(fk_table_name)} = {to_camel_case(fk_table_name)};\n")
+                    object_field_name = extract_name_no_id(field_name)
+                    f.write(f"        this.{object_field_name} = {object_field_name};\n")
                 else:
                     f.write(f"        this.{field_name} = {field_name};\n")
         
         f.write("    }\n\n")
         
-        # Getters et Setters avec contrôles pour les types primitifs
+        # Getters et Setters
         for col_name, col_type in columns:
             java_type = get_java_type(col_type)
             field_name = to_camel_case(col_name)
-            method_name = field_name[0].upper() + field_name[1:]
             
             fk_info = next((fk for fk in foreign_keys if fk[0] == col_name), None)
             
-            # Getter
             if fk_info:
-                # Getter pour foreign key (objet)
+                # Pour les foreign keys
                 fk_table_name = fk_info[1]
                 referenced_class = to_pascal_case(fk_table_name)
-                f.write(f"    public {referenced_class} get{method_name}() {{\n")
-                f.write(f"        return this.{to_camel_case(fk_table_name)};\n")
+                object_field_name = extract_name_no_id(field_name)
+                getter_name = object_field_name[0].upper() + object_field_name[1:]
+                
+                # Getter
+                f.write(f"    public {referenced_class} get{getter_name}() {{\n")
+                f.write(f"        return this.{object_field_name};\n")
+                f.write("    }\n\n")
+                
+                # Setter
+                f.write(f"    public void set{getter_name}({referenced_class} {object_field_name}) {{\n")
+                f.write(f"        this.{object_field_name} = {object_field_name};\n")
                 f.write("    }\n\n")
             else:
+                # Pour les attributs normaux
+                method_name = field_name[0].upper() + field_name[1:]
+                
                 # Getter avec conversion pour types primitifs
                 if java_type in ['Integer', 'Long', 'Double', 'Boolean']:
                     simple_type = get_simple_java_type(col_type)
@@ -177,17 +211,8 @@ def generate_model_file(table_name, columns, primary_keys, foreign_keys, output_
                     f.write(f"    public {java_type} get{method_name}() {{\n")
                     f.write(f"        return this.{field_name};\n")
                     f.write("    }\n\n")
-            
-            # Setter
-            if fk_info:
-                # Setter pour foreign key
-                fk_table_name = fk_info[1]
-                referenced_class = to_pascal_case(fk_table_name)
-                f.write(f"    public void set{method_name}({referenced_class} {to_camel_case(fk_table_name)}) {{\n")
-                f.write(f"        this.{to_camel_case(fk_table_name)} = {to_camel_case(fk_table_name)};\n")
-                f.write("    }\n\n")
-            else:
-                # Setter avec validation pour String
+                
+                # Setter
                 if java_type == 'String':
                     f.write(f"    public void set{method_name}({java_type} {field_name}) {{\n")
                     f.write(f"        if ({field_name} != null && {field_name}.trim().length() > 0)\n")
@@ -202,14 +227,20 @@ def generate_model_file(table_name, columns, primary_keys, foreign_keys, output_
     
     print(f"Modèle généré: {file_path}")
 
-def generate_dto_file(table_name, columns, primary_keys, foreign_keys, output_dir):
+def generate_dto_file(table_name, columns, primary_keys, foreign_keys, output_dir, dto_package):
     """Génère un fichier DTO Java"""
     class_name = to_pascal_case(table_name)
     dto_name = f"{class_name}DTO"
-    file_path = os.path.join(output_dir, f"{dto_name}.java")
+    
+    # Créer les sous-dossiers selon le package
+    package_path = dto_package.replace('.', '/')
+    full_output_dir = os.path.join(output_dir, package_path)
+    os.makedirs(full_output_dir, exist_ok=True)
+    
+    file_path = os.path.join(full_output_dir, f"{dto_name}.java")
     
     with open(file_path, 'w', encoding='utf-8') as f:
-        f.write("package com.project.dto;\n\n")
+        f.write(f"package {dto_package};\n\n")
         f.write(f"public class {dto_name} {{\n")
         
         # Déclaration des attributs (sauf clés primaires)
@@ -222,7 +253,8 @@ def generate_dto_file(table_name, columns, primary_keys, foreign_keys, output_di
                 fk_info = next((fk for fk in foreign_keys if fk[0] == col_name), None)
                 if fk_info:
                     fk_id_type = get_simple_java_type(next(col_type for col_name2, col_type2 in columns if col_name2 == col_name))
-                    field_name = f"{to_camel_case(fk_info[1])}Id"
+                    object_field_name = extract_name_no_id(field_name)
+                    field_name = f"{object_field_name}Id"
                     f.write(f"    private {fk_id_type} {field_name};\n")
                 else:
                     f.write(f"    private {java_type} {field_name};\n")
@@ -234,86 +266,94 @@ def generate_dto_file(table_name, columns, primary_keys, foreign_keys, output_di
         f.write("    }\n\n")
         
         # Constructeur avec paramètres
-        f.write("    public {}(String nom".format(dto_name))
+        constructor_params = []
         
-        # Ajouter d'autres paramètres si nécessaire
-        param_count = 0
         for col_name, col_type in columns:
-            if col_name not in primary_keys and col_name != 'nom':
-                java_type = get_simple_java_type(col_type)
+            if col_name not in primary_keys:
                 field_name = to_camel_case(col_name)
                 fk_info = next((fk for fk in foreign_keys if fk[0] == col_name), None)
                 
                 if fk_info:
                     fk_id_type = get_simple_java_type(next(col_type for col_name2, col_type2 in columns if col_name2 == col_name))
-                    field_name = f"{to_camel_case(fk_info[1])}Id"
-                    f.write(f", {fk_id_type} {field_name}")
+                    object_field_name = extract_name_no_id(field_name)
+                    field_name = f"{object_field_name}Id"
+                    constructor_params.append(f"{fk_id_type} {field_name}")
                 else:
-                    f.write(f", {java_type} {field_name}")
-                param_count += 1
+                    java_type = get_simple_java_type(col_type)
+                    constructor_params.append(f"{java_type} {field_name}")
         
-        if param_count > 0:
-            f.write(") {\n")
-        else:
-            f.write(") {\n")
-        
-        f.write("        this.nom = nom;\n")
-        
-        for col_name, col_type in columns:
-            if col_name not in primary_keys and col_name != 'nom':
-                field_name = to_camel_case(col_name)
-                fk_info = next((fk for fk in foreign_keys if fk[0] == col_name), None)
-                
-                if fk_info:
-                    field_name = f"{to_camel_case(fk_info[1])}Id"
-                    f.write(f"        this.{field_name} = {field_name};\n")
-                else:
-                    f.write(f"        this.{field_name} = {field_name};\n")
-        
-        f.write("    }\n\n")
+        if constructor_params:
+            f.write("    public {}({}) {{\n".format(dto_name, ", ".join(constructor_params)))
+            
+            for col_name, col_type in columns:
+                if col_name not in primary_keys:
+                    field_name = to_camel_case(col_name)
+                    fk_info = next((fk for fk in foreign_keys if fk[0] == col_name), None)
+                    
+                    if fk_info:
+                        object_field_name = extract_name_no_id(field_name)
+                        field_name = f"{object_field_name}Id"
+                        f.write(f"        this.{field_name} = {field_name};\n")
+                    else:
+                        f.write(f"        this.{field_name} = {field_name};\n")
+            
+            f.write("    }\n\n")
         
         # Getters et Setters
         for col_name, col_type in columns:
             if col_name not in primary_keys:
-                java_type = get_simple_java_type(col_type)
                 field_name = to_camel_case(col_name)
-                method_name = field_name[0].upper() + field_name[1:]
                 
                 fk_info = next((fk for fk in foreign_keys if fk[0] == col_name), None)
                 if fk_info:
-                    field_name = f"{to_camel_case(fk_info[1])}Id"
-                    method_name = f"{to_camel_case(fk_info[1])[0].upper()}{to_camel_case(fk_info[1])[1:]}Id"
+                    object_field_name = extract_name_no_id(field_name)
+                    field_name = f"{object_field_name}Id"
+                    method_name = object_field_name[0].upper() + object_field_name[1:] + "Id"
                     fk_id_type = get_simple_java_type(next(col_type for col_name2, col_type2 in columns if col_name2 == col_name))
-                
-                # Getter
-                if fk_info:
+                    
+                    # Getter
                     f.write(f"    public {fk_id_type} get{method_name}() {{\n")
-                else:
-                    f.write(f"    public {java_type} get{method_name}() {{\n")
-                f.write(f"        return {field_name};\n")
-                f.write("    }\n\n")
-                
-                # Setter
-                if fk_info:
+                    f.write(f"        return {field_name};\n")
+                    f.write("    }\n\n")
+                    
+                    # Setter
                     f.write(f"    public void set{method_name}({fk_id_type} {field_name}) {{\n")
+                    f.write(f"        this.{field_name} = {field_name};\n")
+                    f.write("    }\n\n")
                 else:
+                    method_name = field_name[0].upper() + field_name[1:]
+                    java_type = get_simple_java_type(col_type)
+                    
+                    # Getter
+                    f.write(f"    public {java_type} get{method_name}() {{\n")
+                    f.write(f"        return {field_name};\n")
+                    f.write("    }\n\n")
+                    
+                    # Setter
                     f.write(f"    public void set{method_name}({java_type} {field_name}) {{\n")
-                f.write(f"        this.{field_name} = {field_name};\n")
-                f.write("    }\n\n")
+                    f.write(f"        this.{field_name} = {field_name};\n")
+                    f.write("    }\n\n")
         
         f.write("}\n")
     
     print(f"DTO généré: {file_path}")
 
-def generate_controller_file(table_name, columns, primary_keys, foreign_keys, output_dir):
+def generate_controller_file(table_name, columns, primary_keys, foreign_keys, output_dir, 
+                            controller_package, model_package, dto_package):
     """Génère un fichier contrôleur Spring"""
     class_name = to_pascal_case(table_name)
     controller_name = f"{class_name}Controller"
     dto_name = f"{class_name}DTO"
-    file_path = os.path.join(output_dir, f"{controller_name}.java")
+    
+    # Créer les sous-dossiers selon le package
+    package_path = controller_package.replace('.', '/')
+    full_output_dir = os.path.join(output_dir, package_path)
+    os.makedirs(full_output_dir, exist_ok=True)
+    
+    file_path = os.path.join(full_output_dir, f"{controller_name}.java")
     
     with open(file_path, 'w', encoding='utf-8') as f:
-        f.write("package com.project.controller;\n\n")
+        f.write(f"package {controller_package};\n\n")
         f.write("import java.sql.Connection;\n")
         f.write("import java.util.List;\n\n")
         f.write("import org.springframework.stereotype.Controller;\n")
@@ -321,8 +361,8 @@ def generate_controller_file(table_name, columns, primary_keys, foreign_keys, ou
         f.write("import org.springframework.web.bind.annotation.GetMapping;\n")
         f.write("import org.springframework.web.bind.annotation.ModelAttribute;\n")
         f.write("import org.springframework.web.bind.annotation.PostMapping;\n\n")
-        f.write(f"import com.project.dto.{dto_name};\n")
-        f.write(f"import com.project.model.table.{class_name};\n")
+        f.write(f"import {dto_package}.{dto_name};\n")
+        f.write(f"import {model_package}.{class_name};\n")
         f.write("import com.project.pja.databases.MyConnection;\n")
         f.write("import com.project.pja.databases.generalisation.DB;\n\n")
         
@@ -351,22 +391,24 @@ def generate_controller_file(table_name, columns, primary_keys, foreign_keys, ou
                     # Pour les foreign keys, on récupère l'objet complet
                     fk_table_name = fk_info[1]
                     referenced_class = to_pascal_case(fk_table_name)
-                    fk_field_name = f"{to_camel_case(fk_table_name)}Id"
+                    object_field_name = extract_name_no_id(field_name)
+                    dto_field_name = f"{object_field_name}Id"
                     f.write(f"            \n")
                     f.write(f"            // Récupération de l'objet {referenced_class}\n")
                     f.write(f"            if ({table_name}DTO.get{referenced_class}Id() != null) {{\n")
-                    f.write(f"                {referenced_class} {to_camel_case(fk_table_name)} = {referenced_class}.getById({table_name}DTO.get{referenced_class}Id(), connection);\n")
-                    f.write(f"                {table_name}.set{referenced_class}({to_camel_case(fk_table_name)});\n")
+                    f.write(f"                {referenced_class} {object_field_name} = {referenced_class}.getById({table_name}DTO.get{referenced_class}Id(), connection);\n")
+                    f.write(f"                {table_name}.set{referenced_class}({object_field_name});\n")
                     f.write("            }\n")
                 else:
-                    f.write(f"            {table_name}.set{field_name[0].upper()}{field_name[1:]}({table_name}DTO.get{field_name[0].upper()}{field_name[1:]}());\n")
+                    method_name = field_name[0].upper() + field_name[1:]
+                    f.write(f"            {table_name}.set{method_name}({table_name}DTO.get{method_name}());\n")
         
         f.write("            \n")
         f.write("            // Sauvegarder dans la base de données\n")
         f.write(f"            DB.save({table_name}, connection);\n")
         f.write("            \n")
         f.write("            // Message de succès\n")
-        f.write("            model.addAttribute(\"success\", \"{} enregistré avec succès !\");\n".format(class_name))
+        f.write(f"            model.addAttribute(\"success\", \"{class_name} enregistré avec succès !\");\n")
         f.write(f"            model.addAttribute(\"{table_name}DTO\", new {dto_name}()); // Réinitialiser le formulaire\n")
         f.write("            \n")
         f.write("        } catch (Exception e) {\n")
@@ -418,10 +460,15 @@ def generate_controller_file(table_name, columns, primary_keys, foreign_keys, ou
     
     print(f"Contrôleur généré: {file_path}")
 
-def generate_jsp_list_file(table_name, columns, primary_keys, foreign_keys, output_dir):
+def generate_jsp_list_file(table_name, columns, primary_keys, foreign_keys, output_dir, jsp_base_path):
     """Génère un fichier JSP pour lister les éléments"""
     class_name = to_pascal_case(table_name)
-    file_path = os.path.join(output_dir, f"liste{class_name}.jsp")
+    
+    # Créer le répertoire pour le JSP
+    jsp_dir = os.path.join(output_dir, f"pages/{table_name}")
+    os.makedirs(jsp_dir, exist_ok=True)
+    
+    file_path = os.path.join(jsp_dir, f"liste{class_name}.jsp")
     
     with open(file_path, 'w', encoding='utf-8') as f:
         f.write('<%@ page contentType="text/html;charset=UTF-8" %>\n')
@@ -494,30 +541,34 @@ def generate_jsp_list_file(table_name, columns, primary_keys, foreign_keys, outp
         # Contenu des colonnes
         for col_name, col_type in columns:
             field_name = to_camel_case(col_name)
-            method_name = field_name[0].upper() + field_name[1:]
             
             fk_info = next((fk for fk in foreign_keys if fk[0] == col_name), None)
             
             if fk_info:
                 # Pour les foreign keys, afficher le nom de l'objet lié
                 fk_table_name = fk_info[1]
+                referenced_class = to_pascal_case(fk_table_name)
+                object_field_name = extract_name_no_id(field_name)
+                getter_name = object_field_name[0].upper() + object_field_name[1:]
+                
                 f.write(f'                            <td>\n')
-                f.write(f'                              <% if ({table_name}.get{method_name}() != null) {{ %>\n')
-                f.write(f'                                <%= {table_name}.get{method_name}().getNom() %>\n')
+                f.write(f'                              <% if ({table_name}.get{getter_name}() != null) {{ %>\n')
+                f.write(f'                                <%= {table_name}.get{getter_name}().getNom() %>\n')
                 f.write('                              <% } else { %>\n')
                 f.write('                                Non défini\n')
                 f.write('                              <% } %>\n')
                 f.write('                            </td>\n')
             elif get_java_type(col_type) == 'Date':
+                method_name = field_name[0].upper() + field_name[1:]
                 f.write(f'                            <td>\n')
                 f.write(f'                              <% if ({table_name}.get{method_name}Object() != null) {{ %>\n')
-                f.write('                                <%= sdf.format({}.get{}Object()) %>'.format(table_name, method_name))
-                f.write('\n')
+                f.write(f'                                <%= sdf.format({table_name}.get{method_name}Object()) %>\n')
                 f.write('                              <% } else { %>\n')
                 f.write('                                Non défini\n')
                 f.write('                              <% } %>\n')
                 f.write('                            </td>\n')
             else:
+                method_name = field_name[0].upper() + field_name[1:]
                 f.write(f'                            <td><%= {table_name}.get{method_name}() %></td>\n')
         
         f.write('                          </tr>\n')
@@ -545,10 +596,15 @@ def generate_jsp_list_file(table_name, columns, primary_keys, foreign_keys, outp
     
     print(f"JSP liste généré: {file_path}")
 
-def generate_jsp_create_file(table_name, columns, primary_keys, foreign_keys, output_dir):
+def generate_jsp_create_file(table_name, columns, primary_keys, foreign_keys, output_dir, jsp_base_path):
     """Génère un fichier JSP pour la création"""
     class_name = to_pascal_case(table_name)
-    file_path = os.path.join(output_dir, f"creation{class_name}.jsp")
+    
+    # Créer le répertoire pour le JSP
+    jsp_dir = os.path.join(output_dir, f"pages/{table_name}")
+    os.makedirs(jsp_dir, exist_ok=True)
+    
+    file_path = os.path.join(jsp_dir, f"creation{class_name}.jsp")
     
     with open(file_path, 'w', encoding='utf-8') as f:
         f.write('<%@ page contentType="text/html;charset=UTF-8" %>\n')
@@ -628,9 +684,12 @@ def generate_jsp_create_file(table_name, columns, primary_keys, foreign_keys, ou
                 if fk_info:
                     # Select pour foreign key
                     fk_table_name = fk_info[1]
-                    f.write(f'                            <label for="{field_name}" class="col-sm-3 col-form-label">{display_name}</label>\n')
+                    object_field_name = extract_name_no_id(field_name)
+                    display_name = object_field_name[0].upper() + object_field_name[1:]
+                    
+                    f.write(f'                            <label for="{object_field_name}" class="col-sm-3 col-form-label">{display_name}</label>\n')
                     f.write('                            <div class="col-sm-9">\n')
-                    f.write(f'                              <select class="form-control" id="{field_name}" name="{field_name}" required>\n')
+                    f.write(f'                              <select class="form-control" id="{object_field_name}" name="{object_field_name}" required>\n')
                     f.write(f'                                <option value="">Sélectionnez un {display_name}</option>\n')
                     f.write(f'                                <% if ({fk_table_name}s != null) {{\n')
                     f.write(f'                                    for ({to_pascal_case(fk_table_name)} {fk_table_name} : {fk_table_name}s) {{ \n')
@@ -647,11 +706,12 @@ def generate_jsp_create_file(table_name, columns, primary_keys, foreign_keys, ou
                     f.write(f'                            <label for="{field_name}" class="col-sm-3 col-form-label">{display_name}</label>\n')
                     f.write('                            <div class="col-sm-9">\n')
                     
-                    if get_java_type(col_type) == 'Date':
+                    java_type = get_java_type(col_type)
+                    if java_type == 'Date':
                         f.write(f'                              <input type="date" class="form-control" id="{field_name}" name="{field_name}" required>\n')
-                    elif get_java_type(col_type) in ['Integer', 'Long', 'Double']:
+                    elif java_type in ['Integer', 'Long', 'Double']:
                         f.write(f'                              <input type="number" class="form-control" id="{field_name}" name="{field_name}" required>\n')
-                    elif get_java_type(col_type) == 'Boolean':
+                    elif java_type == 'Boolean':
                         f.write(f'                              <select class="form-control" id="{field_name}" name="{field_name}" required>\n')
                         f.write('                                <option value="true">Oui</option>\n')
                         f.write('                                <option value="false">Non</option>\n')
@@ -684,20 +744,26 @@ def generate_jsp_create_file(table_name, columns, primary_keys, foreign_keys, ou
     print(f"JSP création généré: {file_path}")
 
 def main():
+    # --- CONFIGURATION DES PACKAGES ET RÉPERTOIRES ---
+    # Vous pouvez modifier ces valeurs selon vos besoins
+    
+    # Packages Java
+    MODEL_PACKAGE = "com.project.model.table"
+    DTO_PACKAGE = "com.project.dto"
+    CONTROLLER_PACKAGE = "com.project.controller"
+    
+    # Répertoires de sortie
+    BASE_OUTPUT_DIR = "generated"  # Répertoire racine pour tous les fichiers générés
+    
+    # Sous-répertoires pour chaque type de fichier
+    MODEL_OUTPUT_DIR = os.path.join(BASE_OUTPUT_DIR, "src/main/java")
+    DTO_OUTPUT_DIR = os.path.join(BASE_OUTPUT_DIR, "src/main/java")
+    CONTROLLER_OUTPUT_DIR = os.path.join(BASE_OUTPUT_DIR, "src/main/java")
+    JSP_OUTPUT_DIR = os.path.join(BASE_OUTPUT_DIR, "src/main/webapp/WEB-INF/views")
+    
     try:
         conn = psycopg2.connect(**config_pg)
         cur = conn.cursor()
-
-        # Créer les répertoires de sortie
-        output_dirs = {
-            "models": "generated/models",
-            "dtos": "generated/dtos",
-            "controllers": "generated/controllers",
-            "jsp": "generated/jsp"
-        }
-        
-        for dir_name, dir_path in output_dirs.items():
-            os.makedirs(dir_path, exist_ok=True)
 
         # Récupérer toutes les tables (sauf les vues)
         cur.execute("""
@@ -748,14 +814,24 @@ def main():
             """, (table_name,))
             foreign_keys = cur.fetchall()
 
-            # Générer les fichiers
-            generate_model_file(table_name, columns, primary_keys, foreign_keys, output_dirs["models"])
-            generate_dto_file(table_name, columns, primary_keys, foreign_keys, output_dirs["dtos"])
-            generate_controller_file(table_name, columns, primary_keys, foreign_keys, output_dirs["controllers"])
-            generate_jsp_list_file(table_name, columns, primary_keys, foreign_keys, output_dirs["jsp"])
-            generate_jsp_create_file(table_name, columns, primary_keys, foreign_keys, output_dirs["jsp"])
+            # Générer les fichiers avec les packages spécifiés
+            generate_model_file(table_name, columns, primary_keys, foreign_keys, 
+                              MODEL_OUTPUT_DIR, MODEL_PACKAGE)
+            generate_dto_file(table_name, columns, primary_keys, foreign_keys,
+                            DTO_OUTPUT_DIR, DTO_PACKAGE)
+            generate_controller_file(table_name, columns, primary_keys, foreign_keys,
+                                   CONTROLLER_OUTPUT_DIR, CONTROLLER_PACKAGE,
+                                   MODEL_PACKAGE, DTO_PACKAGE)
+            generate_jsp_list_file(table_name, columns, primary_keys, foreign_keys,
+                                 JSP_OUTPUT_DIR, "pages")
+            generate_jsp_create_file(table_name, columns, primary_keys, foreign_keys,
+                                   JSP_OUTPUT_DIR, "pages")
 
-        print(f"\nGénération terminée! Les fichiers sont dans le dossier: generated/")
+        print(f"\nGénération terminée!")
+        print(f"Modèles: {MODEL_OUTPUT_DIR}/{MODEL_PACKAGE.replace('.', '/')}")
+        print(f"DTOs: {DTO_OUTPUT_DIR}/{DTO_PACKAGE.replace('.', '/')}")
+        print(f"Contrôleurs: {CONTROLLER_OUTPUT_DIR}/{CONTROLLER_PACKAGE.replace('.', '/')}")
+        print(f"JSPs: {JSP_OUTPUT_DIR}/pages/")
 
     except Exception as e:
         print("Erreur PostgreSQL :", e)

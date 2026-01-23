@@ -27,7 +27,63 @@ public class VoyageVoiture {
 
     public double montantCA;
 
-    @ShowTable(name = "CA (Ar)", numero = 5)
+    public double montantCAPub;
+
+    public double montantTotalePub;
+
+    public double montantResteAPayerPub;
+    
+
+    public double getMontantResteAPayerPub() {
+        return montantResteAPayerPub;
+    }
+    @ShowTable(name = "Reste pub a payer", numero = 10)
+    public String getMontantResteAPayerPubString() {
+        return montantResteAPayerPub+" Ar ";
+    }
+
+    public void setMontantResteAPayerPub(double montantResteAPayerPub) {
+        this.montantResteAPayerPub = montantResteAPayerPub;
+    }
+
+
+    public double getMontantTotalePub() {
+        return montantTotalePub;
+    }
+
+
+    @ShowTable(name = "Publicite totale a payer", numero = 9)
+    public String getMontantTotalePubString() {
+        return montantTotalePub + "Ar";
+    }
+    public void setMontantTotalePub(double montantTotalePub) {
+        this.montantTotalePub = montantTotalePub;
+    }
+    public double getMontantCAPub() {
+        return montantCAPub;
+    }
+
+    public double montantTotaleCA;
+
+    public double getMontantTotaleCA() {
+        return montantTotaleCA;
+    }
+    public void setMontantTotaleCA(double montantTotaleCA) {
+        this.montantTotaleCA = montantTotaleCA;
+    }
+    @ShowTable(name = "Totale CA (Ar)", numero = 8)
+    public String getTotaleCA() {
+        return montantTotaleCA +" Ar";
+    }
+    @ShowTable(name = "CA Pub(Ar)", numero = 7)
+    public String getMontantCAPubString() {
+        return montantCAPub+" Ar";
+    }
+    public void setMontantCAPub(double montantCAPub) {
+        this.montantCAPub = montantCAPub;
+    }
+
+    @ShowTable(name = "CA (Ar)", numero = 6)
     public double getMontantCA() {
         return montantCA;
     }
@@ -67,6 +123,10 @@ public class VoyageVoiture {
         this.setPrixMaximum(prixMax);
     }
 
+    public void calculMontantTotaleCA(Connection connection){
+        setMontantTotaleCA(this.getMontantCA()+ this.getMontantCAPub());
+    }
+
     public void calculCA(Connection connection) throws Exception{
         double CA = 0;
         List<TypePlaceVoyage> typePlaceVoyages = (List<TypePlaceVoyage>) DB.getAllWhere(new TypePlaceVoyage(), " id_voyage_voiture = " + this.getId(), connection);
@@ -91,6 +151,35 @@ public class VoyageVoiture {
         
         this.setMontantCA(CA);
     }
+
+     public void calculCAPub(Connection connection) throws Exception{
+        double CA = 0;
+        List<DiffusionSociete> diffusionSocietes = (List<DiffusionSociete>) DB.getAllWhere(new DiffusionSociete(), " id_voyage_voiture = "+this.getId(), connection);
+        for (DiffusionSociete diffusionSociete : diffusionSocietes) {
+            List<PayementDiffusion> payementDiffusions = (List<PayementDiffusion>) DB.getAllWhere(new PayementDiffusion(), " id_societe_diffusion = "+diffusionSociete.getId(), connection);
+            for (PayementDiffusion payementDiffusion : payementDiffusions) {
+                CA += payementDiffusion.getMontant();
+            }
+        }
+        
+        this.setMontantCAPub(CA);
+    }
+
+    public void calculCAPubTotaleAPayer(Connection connection) throws Exception{
+        double CA = 0;
+        List<DiffusionSociete> diffusionSocietes = (List<DiffusionSociete>) DB.getAllWhere(new DiffusionSociete(), " id_voyage_voiture = "+this.getId(), connection);
+        List<MouvementPrixPub> mouvementPrixPubs = (List<MouvementPrixPub>) DB.getAll(new MouvementPrixPub(), connection);
+            for (DiffusionSociete diffusionSociete : diffusionSocietes) {
+                CA += diffusionSociete.getNombrePub()*mouvementPrixPubs.get(0).getMontant();
+            }
+        
+        this.setMontantTotalePub(CA);
+    }
+
+    public void calculResteCAPubAPayer(){
+        this.setMontantResteAPayerPub(this.montantTotalePub - this.montantCAPub);
+    }
+    
     public VoyageVoiture() {
     }
 
@@ -105,7 +194,7 @@ public class VoyageVoiture {
         return id;
     }
 
-    @ShowTable(name = "Nom voyage", numero = 2)
+    @ShowTable(name = "Voyage", numero = 2)
     public String getNomVoyage(){
         return this.getVoyage().getNom();
     }
