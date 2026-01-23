@@ -181,7 +181,7 @@ public class RooterController {
                 
             }
 
-            String voyageVoituresTab = DB.getTableau(voyageVoitures, new VoyageVoiture(),"Liste de voiture par voyage", "Voitures assignées à chaque voyage");
+            String voyageVoituresTab = DB.getTableau(voyageVoitures, new VoyageVoiture(),"Liste de voiture par voyages", "Voitures assignées à chaque voyage");
 
             // Ajouter la liste au modèle
             model.addAttribute("voyageVoitures", voyageVoitures);
