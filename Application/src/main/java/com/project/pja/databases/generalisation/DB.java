@@ -3,10 +3,12 @@ package com.project.pja.databases.generalisation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -519,6 +521,8 @@ public class DB {
 
         Class<?> classTable = table.getClass();
         String query = "SELECT " + attrs + " FROM " + nameTable + " WHERE " + where;
+
+        System.out.println(query);
         List<Object> result = new ArrayList<>();
         PreparedStatement statement = null;
         ResultSet resultset = null;
@@ -1171,304 +1175,388 @@ public class DB {
     }
 
     public static void save(Object table, Connection connection)
-            throws Exception {
-        InfoObject infoObject = DB.getAllInformationsObjects(table);
-        boolean isInsert = true;
-        if (infoObject.valueId != null) {
-            isInsert = false;
+        throws Exception {
+    InfoObject infoObject = DB.getAllInformationsObjects(table);
+    boolean isInsert = true;
+    if (infoObject.valueId != null) {
+        isInsert = false;
+    }
+    String query = "";
+
+    if (isInsert) {
+        String attrs = "";
+        String data = "";
+        int i = 0;
+        for (String attrTable : infoObject.nameAttributsInTable) {
+            if (!attrTable.equals(infoObject.nameIdAttributs)) {
+                if (i > 0) {
+                    attrs = attrs + " , ";
+                    data = data + " , ";
+                }
+                attrs = attrs + attrTable;
+                data = data + " ? ";
+                i++;
+            }
         }
-        String query = "";
+        query = "INSERT INTO " + infoObject.nameTable + "(" + attrs + ") VALUES (" + data + ")";
+    } else {
+        String attrs = "";
+        int i = 0;
+        for (String attrTable : infoObject.nameAttributsInTable) {
+            if (!attrTable.equals(infoObject.nameIdAttributs)) {
+                if (i > 0) {
+                    attrs = attrs + " , ";
+                }
+                attrs = attrs + attrTable + " = ? ";
+                i++;
+            }
+        }
+        query = "UPDATE " + infoObject.nameTable + " SET " + attrs + " WHERE " + infoObject.nameIdAttributsInTable
+                + " = ?";
+    }
+
+    System.out.println(query + " query ");
+    PreparedStatement statement = null;
+    ResultSet resultset = null;
+    boolean statementOpen = false;
+    boolean resultsetOpen = false;
+    boolean closeable = false;
+
+    try {
+        if (connection == null)
+            throw new Exception("Le connexion qui sauvegarde le '" + infoObject.nameTable + "' n'est pas ouvert");
 
         if (isInsert) {
-            String attrs = "";
-            String data = "";
-            int i = 0;
-            for (String attrTable : infoObject.nameAttributsInTable) {
-                if (!attrTable.equals(infoObject.nameIdAttributs)) {
-                    if (i > 0) {
-                        attrs = attrs + " , ";
-                        data = data + " , ";
-                    }
-                    attrs = attrs + attrTable;
-                    data = data + " ? ";
-                    i++;
-                }
-            }
-            query = "INSERT INTO " + infoObject.nameTable + "(" + attrs + ") VALUES (" + data + ")";
+            statement = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS);
         } else {
-            String attrs = "";
-            int i = 0;
-            for (String attrTable : infoObject.nameAttributsInTable) {
-                if (!attrTable.equals(infoObject.nameIdAttributs)) {
-                    if (i > 0) {
-                        attrs = attrs + " , ";
-                    }
-                    attrs = attrs + attrTable + " = ? ";
-                    i++;
-                }
-            }
-            query = "UPDATE " + infoObject.nameTable + " SET " + attrs + " WHERE " + infoObject.nameIdAttributsInTable
-                    + " = ?";
-        }
-
-        System.out.println(query + " query ");
-        PreparedStatement statement = null;
-        ResultSet resultset = null;
-        boolean statementOpen = false;
-        boolean resultsetOpen = false;
-        boolean closeable = false;
-
-        try {
-            if (connection == null)
-                throw new Exception("Le connexion qui sauvegarde le '" + infoObject.nameTable + "' n'est pas ouvert");
-
             statement = connection.prepareStatement(query);
-            int j = 1;
-            for (int i = 0; i < infoObject.nameAttributs.size(); i++) {
-                if (!infoObject.nameAttributs.get(i).equals(infoObject.nameIdAttributs)) {
-                    for (Field field : table.getClass().getDeclaredFields()) {
-                        if (field.getName().compareToIgnoreCase(infoObject.nameAttributs.get(i)) == 0) {
-                            field.setAccessible(true);
-                            Class<?> type = field.getType();
-                            Object value = field.get(table);
+        }
+        
+        int j = 1;
+        for (int i = 0; i < infoObject.nameAttributs.size(); i++) {
+            if (!infoObject.nameAttributs.get(i).equals(infoObject.nameIdAttributs)) {
+                for (Field field : table.getClass().getDeclaredFields()) {
+                    if (field.getName().compareToIgnoreCase(infoObject.nameAttributs.get(i)) == 0) {
+                        field.setAccessible(true);
+                        Class<?> type = field.getType();
+                        Object value = field.get(table);
 
-                            if (type.getName().equals("int") || type.getName().equals("java.lang.Integer")) {
-                                if (value != null) {
-                                    statement.setInt(j, (Integer) value);
-                                } else {
+                        if (type.getName().equals("int") || type.getName().equals("java.lang.Integer")) {
+                            if (value != null) {
+                                statement.setInt(j, (Integer) value);
+                            } else {
+                                statement.setNull(j, java.sql.Types.INTEGER);
+                            }
+
+                        } else if (type.getName().equals("long") || type.getName().equals("java.lang.Long")) {
+                            if (value != null) {
+                                statement.setLong(j, (Long) value);
+                            } else {
+                                statement.setNull(j, java.sql.Types.BIGINT);
+                            }
+
+                        } else if (type.getName().equals("double") || type.getName().equals("java.lang.Double")) {
+                            if (value != null) {
+                                statement.setDouble(j, (Double) value);
+                            } else {
+                                statement.setNull(j, java.sql.Types.DOUBLE);
+                            }
+
+                        } else if (type.getName().equals("float") || type.getName().equals("java.lang.Float")) {
+                            if (value != null) {
+                                statement.setFloat(j, (Float) value);
+                            } else {
+                                statement.setNull(j, java.sql.Types.FLOAT);
+                            }
+
+                        } else if (type.getName().equals("boolean") || type.getName().equals("java.lang.Boolean")) {
+                            if (value != null) {
+                                statement.setBoolean(j, (Boolean) value);
+                            } else {
+                                statement.setNull(j, java.sql.Types.BOOLEAN);
+                            }
+
+                        } else if (type.getName().equals("java.lang.String")) {
+                            statement.setString(j, (String) value);
+
+                        } else if (type.getName().equals("java.sql.Date")) {
+                            statement.setDate(j, (java.sql.Date) value);
+
+                        } else if (type.getName().equals("java.sql.Time")) {
+                            statement.setTime(j, (java.sql.Time) value);
+
+                        } else if (type.getName().equals("java.sql.Timestamp")) {
+                            statement.setTimestamp(j, (java.sql.Timestamp) value);
+
+                        } else if (type.getName().equals("java.util.Date")) {
+                            if (value != null) {
+                                statement.setTimestamp(
+                                        j,
+                                        new java.sql.Timestamp(((java.util.Date) value).getTime()));
+                            } else {
+                                statement.setNull(j, java.sql.Types.TIMESTAMP);
+                            }
+
+                        } else if (isComplexObject(type)) {
+
+                            // Cas tableau / collection → ignoré ici
+                            if (type.isArray() || java.util.Collection.class.isAssignableFrom(type)) {
+                                statement.setNull(j, java.sql.Types.INTEGER);
+                            } else {
+                                // Objet complexe (ex: Voiture)
+                                if (value == null) {
                                     statement.setNull(j, java.sql.Types.INTEGER);
-                                }
-
-                            } else if (type.getName().equals("long") || type.getName().equals("java.lang.Long")) {
-                                if (value != null) {
-                                    statement.setLong(j, (Long) value);
                                 } else {
-                                    statement.setNull(j, java.sql.Types.BIGINT);
-                                }
 
-                            } else if (type.getName().equals("double") || type.getName().equals("java.lang.Double")) {
-                                if (value != null) {
-                                    statement.setDouble(j, (Double) value);
-                                } else {
-                                    statement.setNull(j, java.sql.Types.DOUBLE);
-                                }
+                                    // Charger les infos ORM de la classe (Voiture)
+                                    Class<?> classField = type;
+                                    InfoObject infoObjectField = DB.getAllInformationsObjects(value);
 
-                            } else if (type.getName().equals("float") || type.getName().equals("java.lang.Float")) {
-                                if (value != null) {
-                                    statement.setFloat(j, (Float) value);
-                                } else {
-                                    statement.setNull(j, java.sql.Types.FLOAT);
-                                }
+                                    if (infoObjectField.objectIdAttribut == null) {
+                                        throw new Exception(
+                                                "La classe " + classField.getSimpleName() +
+                                                        " n'a pas d'attribut annoté @IdDb");
+                                    }
 
-                            } else if (type.getName().equals("boolean") || type.getName().equals("java.lang.Boolean")) {
-                                if (value != null) {
-                                    statement.setBoolean(j, (Boolean) value);
-                                } else {
-                                    statement.setNull(j, java.sql.Types.BOOLEAN);
-                                }
+                                    Object valeurId = infoObjectField.valueId;
 
-                            } else if (type.getName().equals("java.lang.String")) {
-                                statement.setString(j, (String) value);
-
-                            } else if (type.getName().equals("java.sql.Date")) {
-                                statement.setDate(j, (java.sql.Date) value);
-
-                            } else if (type.getName().equals("java.sql.Time")) {
-                                statement.setTime(j, (java.sql.Time) value);
-
-                            } else if (type.getName().equals("java.sql.Timestamp")) {
-                                statement.setTimestamp(j, (java.sql.Timestamp) value);
-
-                            } else if (type.getName().equals("java.util.Date")) {
-                                if (value != null) {
-                                    statement.setTimestamp(
-                                            j,
-                                            new java.sql.Timestamp(((java.util.Date) value).getTime()));
-                                } else {
-                                    statement.setNull(j, java.sql.Types.TIMESTAMP);
-                                }
-
-                            } else if (isComplexObject(type)) {
-
-                                // Cas tableau / collection → ignoré ici
-                                if (type.isArray() || java.util.Collection.class.isAssignableFrom(type)) {
-                                    statement.setNull(j, java.sql.Types.INTEGER);
-                                } else {
-                                    // Objet complexe (ex: Voiture)
-                                    if (value == null) {
+                                    if (valeurId == null) {
                                         statement.setNull(j, java.sql.Types.INTEGER);
                                     } else {
+                                        Class<?> idType = valeurId.getClass();
 
-                                        // Charger les infos ORM de la classe (Voiture)
-                                        Class<?> classField = type;
-                                        InfoObject infoObjectField = DB.getAllInformationsObjects(value);
+                                        if (idType == int.class || idType == Integer.class) {
+                                            statement.setInt(j, (Integer) valeurId);
 
-                                        if (infoObjectField.objectIdAttribut == null) {
-                                            throw new Exception(
-                                                    "La classe " + classField.getSimpleName() +
-                                                            " n'a pas d'attribut annoté @IdDb");
-                                        }
+                                        } else if (idType == long.class || idType == Long.class) {
+                                            statement.setLong(j, (Long) valeurId);
 
-                                        Object valeurId = infoObjectField.valueId;
+                                        } else if (idType == String.class) {
+                                            statement.setString(j, (String) valeurId);
 
-                                        if (valeurId == null) {
-                                            statement.setNull(j, java.sql.Types.INTEGER);
                                         } else {
-                                            Class<?> idType = valeurId.getClass();
-
-                                            if (idType == int.class || idType == Integer.class) {
-                                                statement.setInt(j, (Integer) valeurId);
-
-                                            } else if (idType == long.class || idType == Long.class) {
-                                                statement.setLong(j, (Long) valeurId);
-
-                                            } else if (idType == String.class) {
-                                                statement.setString(j, (String) valeurId);
-
-                                            } else {
-                                                throw new Exception(
-                                                        "Type d'ID non supporté : " + idType.getName());
-                                            }
+                                            throw new Exception(
+                                                    "Type d'ID non supporté : " + idType.getName());
                                         }
                                     }
                                 }
                             }
-
-                            else {
-                                throw new Exception("Type non pris en charge pour le champ " + field.getName());
-                            }
-                            j++;
+                        } else {
+                            throw new Exception("Type non pris en charge pour le champ " + field.getName());
                         }
+                        j++;
                     }
-
                 }
             }
+        }
 
-            if (!isInsert) {
-                Object value = infoObject.valueId;
-                Class<?> type = value.getClass();
+        if (!isInsert) {
+            Object value = infoObject.valueId;
+            Class<?> type = value.getClass();
 
-                if (type.getName().equals("int") || type.getName().equals("java.lang.Integer")) {
-                    if (value != null) {
-                        statement.setInt(j, (Integer) value);
-                    } else {
-                        statement.setNull(j, java.sql.Types.INTEGER);
-                    }
+            if (type.getName().equals("int") || type.getName().equals("java.lang.Integer")) {
+                if (value != null) {
+                    statement.setInt(j, (Integer) value);
+                } else {
+                    statement.setNull(j, java.sql.Types.INTEGER);
+                }
 
-                } else if (type.getName().equals("long") || type.getName().equals("java.lang.Long")) {
-                    if (value != null) {
-                        statement.setLong(j, (Long) value);
-                    } else {
-                        statement.setNull(j, java.sql.Types.BIGINT);
-                    }
+            } else if (type.getName().equals("long") || type.getName().equals("java.lang.Long")) {
+                if (value != null) {
+                    statement.setLong(j, (Long) value);
+                } else {
+                    statement.setNull(j, java.sql.Types.BIGINT);
+                }
 
-                } else if (type.getName().equals("double") || type.getName().equals("java.lang.Double")) {
-                    if (value != null) {
-                        statement.setDouble(j, (Double) value);
-                    } else {
-                        statement.setNull(j, java.sql.Types.DOUBLE);
-                    }
+            } else if (type.getName().equals("double") || type.getName().equals("java.lang.Double")) {
+                if (value != null) {
+                    statement.setDouble(j, (Double) value);
+                } else {
+                    statement.setNull(j, java.sql.Types.DOUBLE);
+                }
 
-                } else if (type.getName().equals("float") || type.getName().equals("java.lang.Float")) {
-                    if (value != null) {
-                        statement.setFloat(j, (Float) value);
-                    } else {
-                        statement.setNull(j, java.sql.Types.FLOAT);
-                    }
+            } else if (type.getName().equals("float") || type.getName().equals("java.lang.Float")) {
+                if (value != null) {
+                    statement.setFloat(j, (Float) value);
+                } else {
+                    statement.setNull(j, java.sql.Types.FLOAT);
+                }
 
-                } else if (type.getName().equals("boolean") || type.getName().equals("java.lang.Boolean")) {
-                    if (value != null) {
-                        statement.setBoolean(j, (Boolean) value);
-                    } else {
-                        statement.setNull(j, java.sql.Types.BOOLEAN);
-                    }
+            } else if (type.getName().equals("boolean") || type.getName().equals("java.lang.Boolean")) {
+                if (value != null) {
+                    statement.setBoolean(j, (Boolean) value);
+                } else {
+                    statement.setNull(j, java.sql.Types.BOOLEAN);
+                }
 
-                } else if (type.getName().equals("java.lang.String")) {
-                    statement.setString(j, (String) value);
+            } else if (type.getName().equals("java.lang.String")) {
+                statement.setString(j, (String) value);
 
-                } else if (type.getName().equals("java.sql.Date")) {
-                    statement.setDate(j, (java.sql.Date) value);
+            } else if (type.getName().equals("java.sql.Date")) {
+                statement.setDate(j, (java.sql.Date) value);
 
-                } else if (type.getName().equals("java.sql.Time")) {
-                    statement.setTime(j, (java.sql.Time) value);
+            } else if (type.getName().equals("java.sql.Time")) {
+                statement.setTime(j, (java.sql.Time) value);
 
-                } else if (type.getName().equals("java.sql.Timestamp")) {
-                    statement.setTimestamp(j, (java.sql.Timestamp) value);
+            } else if (type.getName().equals("java.sql.Timestamp")) {
+                statement.setTimestamp(j, (java.sql.Timestamp) value);
 
-                } else if (type.getName().equals("java.util.Date")) {
-                    if (value != null) {
-                        statement.setTimestamp(
-                                j,
-                                new java.sql.Timestamp(((java.util.Date) value).getTime()));
-                    } else {
-                        statement.setNull(j, java.sql.Types.TIMESTAMP);
-                    }
-
+            } else if (type.getName().equals("java.util.Date")) {
+                if (value != null) {
+                    statement.setTimestamp(
+                            j,
+                            new java.sql.Timestamp(((java.util.Date) value).getTime()));
+                } else {
+                    statement.setNull(j, java.sql.Types.TIMESTAMP);
                 }
             }
+        }
 
-            statementOpen = true;
-            statement.executeUpdate();
-            statement.close();
+        statementOpen = true;
+        int affectedRows = statement.executeUpdate();
+        
+        // CORRECTION ICI : Utiliser l'index numérique pour getGeneratedKeys()
+        if (affectedRows > 0 && isInsert) {
+            resultset = statement.getGeneratedKeys();
+            if (resultset != null && resultset.next()) {
+                for (Field field : table.getClass().getDeclaredFields()) {
+                    if (field.isAnnotationPresent(IdDb.class)) {
+                        field.setAccessible(true);
+                        Class<?> type = field.getType();
 
-        } catch (Exception e) {
-            System.out.println(e.getMessage());
-            throw e;
-        } finally {
-            if (statementOpen) {
+                        try {
+                            Object generatedValue = null;
+                            
+                            // IMPORTANT : Utiliser l'index 1, pas le nom de colonne
+                            // Les clés générées n'ont pas de nom spécifique
+                            if (type.equals(int.class) || type.equals(Integer.class)) {
+                                generatedValue = resultset.getInt(1); // CHANGEMENT ICI
+                            } else if (type.equals(long.class) || type.equals(Long.class)) {
+                                generatedValue = resultset.getLong(1); // CHANGEMENT ICI
+                            } else if (type.equals(String.class)) {
+                                generatedValue = resultset.getString(1); // CHANGEMENT ICI
+                            } else if (type.equals(double.class) || type.equals(Double.class)) {
+                                generatedValue = resultset.getDouble(1); // CHANGEMENT ICI
+                            } else if (type.equals(float.class) || type.equals(Float.class)) {
+                                generatedValue = resultset.getFloat(1); // CHANGEMENT ICI
+                            } else if (type.equals(boolean.class) || type.equals(Boolean.class)) {
+                                generatedValue = resultset.getBoolean(1); // CHANGEMENT ICI
+                            } else if (type.equals(java.sql.Date.class)) {
+                                generatedValue = resultset.getDate(1); // CHANGEMENT ICI
+                            } else if (type.equals(java.sql.Time.class)) {
+                                generatedValue = resultset.getTime(1); // CHANGEMENT ICI
+                            } else if (type.equals(java.sql.Timestamp.class)) {
+                                generatedValue = resultset.getTimestamp(1); // CHANGEMENT ICI
+                            } else if (type.equals(java.util.Date.class)) {
+                                java.sql.Timestamp timestamp = resultset.getTimestamp(1); // CHANGEMENT ICI
+                                if (timestamp != null) {
+                                    generatedValue = new java.util.Date(timestamp.getTime());
+                                }
+                            } else if (type.equals(short.class) || type.equals(Short.class)) { 
+                                generatedValue = resultset.getShort(1); // CHANGEMENT ICI
+                            } else if (type.equals(byte.class) || type.equals(Byte.class)) {
+                                generatedValue = resultset.getByte(1); // CHANGEMENT ICI
+                            } else if (type.equals(BigDecimal.class)) {
+                                generatedValue = resultset.getBigDecimal(1); // CHANGEMENT ICI
+                            } else {
+                                // Pour les autres types, essayer avec getObject
+                                generatedValue = resultset.getObject(1); // CHANGEMENT ICI
+                            }
+
+                            if (resultset.wasNull() && !type.isPrimitive()) {
+                                generatedValue = null;
+                            }
+
+                            field.set(table, generatedValue);
+
+                        } catch (IllegalAccessException e) {
+                            throw new SQLException("Erreur lors de l'affectation de l'ID généré", e);
+                        }
+
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Déplacer statement.close() à la fin du try
+        statement.close();
+        statementOpen = false;
+
+    } catch (Exception e) {
+        System.out.println("Erreur dans save(): " + e.getMessage());
+        e.printStackTrace();
+        throw e;
+    } finally {
+        if (resultset != null) {
+            try {
+                resultset.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+        
+        if (statementOpen && statement != null) {
+            try {
                 statement.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
+        }
 
-            if (closeable) {
+        if (closeable && connection != null) {
+            try {
                 connection.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
             }
         }
     }
+}
 
-    public static String getTableau(Object listObject,Object object, String titre, String sous_titre) throws Exception {
-        
-       String templateTable =  """
-               
-                <div class="row">
-              <div class="col-lg-12 grid-margin stretch-card">
-                <div class="card">
-                  <div class="card-body">
-                    <h4 class="card-title">%%title%%</h4>
-                    <p class="card-description">%%subtitle%%</p>
-                    <div class="table-responsive">
-                      %%tableau%%
+    public static String getTableau(Object listObject, Object object, String titre, String sous_titre)
+            throws Exception {
+
+        String templateTable = """
+
+                    <div class="row">
+                  <div class="col-lg-12 grid-margin stretch-card">
+                    <div class="card">
+                      <div class="card-body">
+                        <h4 class="card-title">%%title%%</h4>
+                        <p class="card-description">%%subtitle%%</p>
+                        <div class="table-responsive">
+                          %%tableau%%
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-                    
-                    """;
+
+                        """;
 
         return templateTable
-        .replace("%%title%%", titre)
-        .replace("%%subtitle%%", sous_titre)
-        .replace("%%tableau%%", DB.getHTMLTable(listObject, object));
+                .replace("%%title%%", titre)
+                .replace("%%subtitle%%", sous_titre)
+                .replace("%%tableau%%", DB.getHTMLTable(listObject, object));
     }
 
     // Version avec filtre + tri
     public static List<Method> getSortedMethods(Class<?> clazz) {
         return Arrays.stream(clazz.getDeclaredMethods())
-            .filter(methods -> {
-                ShowTable rang = methods.getAnnotation(ShowTable.class);
-                return rang != null && rang.numero() != 0;
-            })
-            .sorted(Comparator.comparingInt(field -> 
-                field.getAnnotation(ShowTable.class).numero()))
-            .collect(Collectors.toList());
+                .filter(methods -> {
+                    ShowTable rang = methods.getAnnotation(ShowTable.class);
+                    return rang != null && rang.numero() != 0;
+                })
+                .sorted(Comparator.comparingInt(field -> field.getAnnotation(ShowTable.class).numero()))
+                .collect(Collectors.toList());
     }
-    
+
     // Version retournant un tableau
     public static Method[] getSortedMethodssArray(Class<?> clazz) {
         List<Method> methodsList = getSortedMethods(clazz);
         return methodsList.toArray(new Method[0]);
     }
-
 
     private static String getHTMLTable(Object listObject, Object object) throws Exception {
         Method[] methods = DB.getSortedMethodssArray(object.getClass());
@@ -1476,13 +1564,13 @@ public class DB {
         for (Method method : methods) {
             ShowTable showTable = method.getAnnotation(ShowTable.class);
             String name = showTable.name();
-            headerTable += "<th>"+name+"</th> \n";
+            headerTable += "<th>" + name + "</th> \n";
         }
         int numberListObject = 0;
         if (listObject == null) {
-            numberListObject = 0; 
+            numberListObject = 0;
         }
-    
+
         if (listObject instanceof List<?>) {
             numberListObject = ((List<?>) listObject).size();
         }
@@ -1490,18 +1578,18 @@ public class DB {
         String bodyTable = "";
         if (numberListObject == 0) {
             bodyTable = """
-                <tr>
-                    <td colspan="%numberColspan%" class="text-center">Aucun donne</td>
-                </tr>
-            """;
-            bodyTable.replace("%numberColspan%", methods.length+"");
-        }else{
-            List<?> list = (List<?>)listObject;
+                        <tr>
+                            <td colspan="%numberColspan%" class="text-center">Aucun donne</td>
+                        </tr>
+                    """;
+            bodyTable.replace("%numberColspan%", methods.length + "");
+        } else {
+            List<?> list = (List<?>) listObject;
             StringBuilder rows = new StringBuilder();
-            
+
             for (Object item : list) {
                 StringBuilder row = new StringBuilder("<tr>\n");
-                
+
                 for (Method method : methods) {
                     try {
                         Object value = method.invoke(item);
@@ -1511,14 +1599,14 @@ public class DB {
                         row.append("<td class=\"text-danger\">Erreur</td>\n");
                     }
                 }
-                
+
                 row.append("</tr>\n");
                 rows.append(row);
             }
-            
+
             bodyTable = rows.toString();
         }
-        String templateTable =  """
+        String templateTable = """
                 <table class="table table-hover table-striped">
                         <thead>
                           <tr>
