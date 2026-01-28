@@ -708,7 +708,7 @@ def generate_jsp_create_file(table_name, columns, primary_keys, foreign_keys, ou
                     
                     java_type = get_java_type(col_type)
                     if java_type == 'Date':
-                        f.write(f'                              <input type="date" class="form-control" id="{field_name}" name="{field_name}" required>\n')
+                        f.write(f'                              <input type="datetime-local" class="form-control" id="{field_name}" name="{field_name}" required>\n')
                     elif java_type in ['Integer', 'Long', 'Double']:
                         f.write(f'                              <input type="number" class="form-control" id="{field_name}" name="{field_name}" required>\n')
                     elif java_type == 'Boolean':
