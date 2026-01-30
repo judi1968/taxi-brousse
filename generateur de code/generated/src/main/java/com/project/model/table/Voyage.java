@@ -1,5 +1,6 @@
 package com.project.model.table;
 
+import com.project.model.table.Gare;
 import com.project.pja.databases.generalisation.annotation.AttributDb;
 import com.project.pja.databases.generalisation.annotation.IdDb;
 import com.project.pja.databases.generalisation.annotation.TableDb;
@@ -18,13 +19,21 @@ public class Voyage {
     @AttributDb(name = "date")
     private Date date;
 
+    @AttributDb(name = "id_gare_depart")
+    private Gare gare_depart; // ← objet Gare
+
+    @AttributDb(name = "id_gare_arrive")
+    private Gare gare_arrive; // ← objet Gare
+
     public Voyage() {
     }
 
-    public Voyage(int id, String nom, Date date) {
+    public Voyage(int id, String nom, Date date, Gare gare_depart, Gare gare_arrive) {
         this.id = id;
         this.nom = nom;
         this.date = date;
+        this.gare_depart = gare_depart;
+        this.gare_arrive = gare_arrive;
     }
 
     public int getId() {
@@ -54,6 +63,22 @@ public class Voyage {
 
     public void setDate(Date date) {
         this.date = date;
+    }
+
+    public Gare getGare_depart() {
+        return this.gare_depart;
+    }
+
+    public void setGare_depart(Gare gare_depart) {
+        this.gare_depart = gare_depart;
+    }
+
+    public Gare getGare_arrive() {
+        return this.gare_arrive;
+    }
+
+    public void setGare_arrive(Gare gare_arrive) {
+        this.gare_arrive = gare_arrive;
     }
 
 }

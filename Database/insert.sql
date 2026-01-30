@@ -90,3 +90,18 @@ INSERT INTO societe (nom) VALUES
 -- Insertion du prix d'une pub en décembre 2020
 INSERT INTO mouvement_prix_pub (montant, date_mouvement) VALUES 
 (100000, '2020-12-01 00:00:00');
+
+-- produit
+INSERT INTO produit(nom) VALUES 
+('eau');
+
+-- prix produit
+INSERT INTO mouvement_prix_produit( id_produit,montant,date_mouvement) VALUES
+(1,5000,'01-01-2020');
+
+-- achat produit
+INSERT INTO achat_produit( id_produit, quantite, date_achat) VALUES
+(1,5,'01-01-2026'),
+(1,3,'01-02-2026');
+
+

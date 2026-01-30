@@ -1,0 +1,46 @@
+package com.project.model.table;
+
+import com.project.pja.databases.generalisation.annotation.AttributDb;
+import com.project.pja.databases.generalisation.annotation.IdDb;
+import com.project.pja.databases.generalisation.annotation.TableDb;
+
+@TableDb(name = "produit")
+public class Produit {
+
+    @IdDb
+    @AttributDb(name = "id")
+    private Integer id;
+
+    @AttributDb(name = "nom")
+    private String nom;
+
+    public Produit() {
+    }
+
+    public Produit(int id, String nom) {
+        this.id = id;
+        this.nom = nom;
+    }
+
+    public int getId() {
+        return this.id != null ? this.id.intValue() : 0;
+    }
+
+    public Integer getIdObject() {
+        return this.id;
+    }
+
+    public void setId(Integer id) {
+        this.id = id;
+    }
+
+    public String getNom() {
+        return this.nom;
+    }
+
+    public void setNom(String nom) {
+        if (nom != null && nom.trim().length() > 0)
+            this.nom = nom;
+    }
+
+}

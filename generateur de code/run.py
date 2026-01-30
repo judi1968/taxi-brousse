@@ -340,7 +340,7 @@ def generate_dto_file(table_name, columns, primary_keys, foreign_keys, output_di
 
 def generate_controller_file(table_name, columns, primary_keys, foreign_keys, output_dir, 
                             controller_package, model_package, dto_package):
-    """Génère un fichier contrôleur Spring"""
+    """Génère un fichier contrôleur Spring avec goToCreate"""
     class_name = to_pascal_case(table_name)
     controller_name = f"{class_name}Controller"
     dto_name = f"{class_name}DTO"
@@ -363,11 +363,55 @@ def generate_controller_file(table_name, columns, primary_keys, foreign_keys, ou
         f.write("import org.springframework.web.bind.annotation.PostMapping;\n\n")
         f.write(f"import {dto_package}.{dto_name};\n")
         f.write(f"import {model_package}.{class_name};\n")
+        
+        # Importer tous les modèles référencés par les foreign keys
+        for fk_col, fk_table, fk_ref_col in foreign_keys:
+            f.write(f"import {model_package}.{to_pascal_case(fk_table)};\n")
+        
         f.write("import com.project.pja.databases.MyConnection;\n")
         f.write("import com.project.pja.databases.generalisation.DB;\n\n")
         
         f.write("@Controller\n")
         f.write(f"public class {controller_name} {{\n\n")
+        
+        # Méthode goToCreate pour charger les données nécessaires avant création
+        create_method_name = f"creation{class_name}" if len(table_name) > 1 else table_name
+        f.write(f"    @GetMapping(\"/{create_method_name}\")\n")
+        f.write(f"    public String goToCreate(Model model) {{\n")
+        f.write("        Connection connection = null;\n")
+        f.write("        try {\n")
+        f.write("            connection = MyConnection.connect();\n\n")
+        
+        # Charger les listes des tables référencées par les foreign keys
+        fk_tables_processed = set()
+        for fk_col, fk_table, fk_ref_col in foreign_keys:
+            if fk_table not in fk_tables_processed:
+                fk_class_name = to_pascal_case(fk_table)
+                f.write(f"\n")
+                f.write(f"            // Récupérer la liste des {fk_table}s\n")
+                f.write(f"            List<{fk_class_name}> {fk_table}s = (List<{fk_class_name}>) DB.getAll(new {fk_class_name}(), connection);\n")
+                f.write(f"            model.addAttribute(\"{fk_table}s\", {fk_table}s);\n")
+                fk_tables_processed.add(fk_table)
+        
+        if not fk_tables_processed:
+            f.write("\n            // Aucune donnée à charger\n")
+        
+        f.write(f"\n            // Initialiser un DTO vide pour le formulaire\n")
+        f.write(f"            model.addAttribute(\"{table_name}DTO\", new {dto_name}());\n\n")
+        f.write("        } catch (Exception e) {\n")
+        f.write("            e.printStackTrace();\n")
+        f.write("            model.addAttribute(\"error\", \"Erreur lors du chargement des données: \" + e.getMessage());\n")
+        f.write("        } finally {\n")
+        f.write("            if (connection != null) {\n")
+        f.write("                try {\n")
+        f.write("                    connection.close();\n")
+        f.write("                } catch (Exception e) {\n")
+        f.write("                    e.printStackTrace();\n")
+        f.write("                }\n")
+        f.write("            }\n")
+        f.write("        }\n")
+        f.write(f"        return \"pages/{table_name}/creation\";\n")
+        f.write("    }\n\n")
         
         # Méthode POST pour sauvegarder
         f.write(f"    @PostMapping(\"/save{class_name}\")\n")
@@ -395,13 +439,17 @@ def generate_controller_file(table_name, columns, primary_keys, foreign_keys, ou
                     dto_field_name = f"{object_field_name}Id"
                     f.write(f"            \n")
                     f.write(f"            // Récupération de l'objet {referenced_class}\n")
-                    f.write(f"            if ({table_name}DTO.get{referenced_class}Id() != null) {{\n")
+                    f.write(f"            if ({table_name}DTO.get{referenced_class}Id() != 0) {{\n")
                     f.write(f"                {referenced_class} {object_field_name} = {referenced_class}.getById({table_name}DTO.get{referenced_class}Id(), connection);\n")
                     f.write(f"                {table_name}.set{referenced_class}({object_field_name});\n")
                     f.write("            }\n")
                 else:
                     method_name = field_name[0].upper() + field_name[1:]
-                    f.write(f"            {table_name}.set{method_name}({table_name}DTO.get{method_name}());\n")
+                    java_type = get_simple_java_type(col_type)
+                    if java_type in ['int', 'long', 'double', 'boolean']:
+                        f.write(f"            {table_name}.set{method_name}({table_name}DTO.get{method_name}());\n")
+                    else:
+                        f.write(f"            {table_name}.set{method_name}({table_name}DTO.get{method_name}());\n")
         
         f.write("            \n")
         f.write("            // Sauvegarder dans la base de données\n")
@@ -411,10 +459,27 @@ def generate_controller_file(table_name, columns, primary_keys, foreign_keys, ou
         f.write(f"            model.addAttribute(\"success\", \"{class_name} enregistré avec succès !\");\n")
         f.write(f"            model.addAttribute(\"{table_name}DTO\", new {dto_name}()); // Réinitialiser le formulaire\n")
         f.write("            \n")
+        f.write("            // Recharger les listes pour les foreign keys\n")
+        for fk_col, fk_table, fk_ref_col in foreign_keys:
+            fk_class_name = to_pascal_case(fk_table)
+            f.write(f"            List<{fk_class_name}> {fk_table}s = (List<{fk_class_name}>) DB.getAll(new {fk_class_name}(), connection);\n")
+            f.write(f"            model.addAttribute(\"{fk_table}s\", {fk_table}s);\n")
+        
+        f.write("            \n")
         f.write("        } catch (Exception e) {\n")
         f.write("            e.printStackTrace();\n")
         f.write("            model.addAttribute(\"error\", \"Erreur lors de l'enregistrement : \" + e.getMessage());\n")
         f.write(f"            model.addAttribute(\"{table_name}DTO\", {table_name}DTO); // Garder les données saisies\n")
+        f.write("            \n")
+        f.write("            // Recharger les listes en cas d'erreur\n")
+        f.write("            try {\n")
+        for fk_col, fk_table, fk_ref_col in foreign_keys:
+            fk_class_name = to_pascal_case(fk_table)
+            f.write(f"                List<{fk_class_name}> {fk_table}s = (List<{fk_class_name}>) DB.getAll(new {fk_class_name}(), connection);\n")
+            f.write(f"                model.addAttribute(\"{fk_table}s\", {fk_table}s);\n")
+        f.write("            } catch (Exception ex) {\n")
+        f.write("                ex.printStackTrace();\n")
+        f.write("            }\n")
         f.write("        } finally {\n")
         f.write("            if (connection != null) {\n")
         f.write("                try {\n")
@@ -604,7 +669,7 @@ def generate_jsp_create_file(table_name, columns, primary_keys, foreign_keys, ou
     jsp_dir = os.path.join(output_dir, f"pages/{table_name}")
     os.makedirs(jsp_dir, exist_ok=True)
     
-    file_path = os.path.join(jsp_dir, f"creation{class_name}.jsp")
+    file_path = os.path.join(jsp_dir, f"creation.jsp")
     
     with open(file_path, 'w', encoding='utf-8') as f:
         f.write('<%@ page contentType="text/html;charset=UTF-8" %>\n')
@@ -627,7 +692,7 @@ def generate_jsp_create_file(table_name, columns, primary_keys, foreign_keys, ou
         f.write('<html lang="en">\n')
         f.write('  <head>\n')
         f.write('    <meta charset="utf-8">\n')
-        f.write('    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">\n')
+        f.write('    <ma`et name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">\n')
         f.write(f'    <title>Creation {class_name}</title>\n')
         f.write('    <%@ include file="../../includes/css.jsp" %>\n')
         f.write('  </head>\n')
@@ -689,14 +754,14 @@ def generate_jsp_create_file(table_name, columns, primary_keys, foreign_keys, ou
                     
                     f.write(f'                            <label for="{object_field_name}" class="col-sm-3 col-form-label">{display_name}</label>\n')
                     f.write('                            <div class="col-sm-9">\n')
-                    f.write(f'                              <select class="form-control" id="{object_field_name}" name="{object_field_name}" required>\n')
+                    f.write(f'                              <select class="form-control" id="{object_field_name}" name="{object_field_name}Id" required>\n')
                     f.write(f'                                <option value="">Sélectionnez un {display_name}</option>\n')
                     f.write(f'                                <% if ({fk_table_name}s != null) {{\n')
                     f.write(f'                                    for ({to_pascal_case(fk_table_name)} {fk_table_name} : {fk_table_name}s) {{ \n')
                     f.write('%>\n')
                     f.write(f'                                <option value="<%= {fk_table_name}.getId() %>"> \n')
                     f.write('                                       \n')
-                    f.write(f'                                  <%= {fk_table_name}.getNom() %>\n')
+                    f.write(f'                                  <%= {fk_table_name}.getNom() != null ? {fk_table_name}.getNom() : "ID: " + {fk_table_name}.getId() %>\n')
                     f.write('                                </option>\n')
                     f.write('<% }\n')
                     f.write('                                } %>\n')
@@ -726,7 +791,7 @@ def generate_jsp_create_file(table_name, columns, primary_keys, foreign_keys, ou
         f.write('                        </div>\n')
         f.write('                      </div>\n')
         f.write('                      <button type="submit" class="btn btn-primary me-2">Enregistrer</button>\n')
-        f.write(f'                      <a href="/{table_name}" class="btn btn-dark">Annuler</a>\n')
+        f.write(f'                      <a href="liste{class_name}" class="btn btn-dark">Annuler</a>\n')
         f.write('                    </form>\n')
         f.write('                  </div>\n')
         f.write('                </div>\n')

@@ -49,6 +49,7 @@
                             <th>IdSociete</th>
                             <th>DateDiffusion</th>
                             <th>NombrePub</th>
+                            <th>IdVoyageVoiture</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -72,11 +73,18 @@
                               <% } %>
                             </td>
                             <td><%= diffusion_societe.getNombrePub() %></td>
+                            <td>
+                              <% if (diffusion_societe.getVoyage_voiture() != null) { %>
+                                <%= diffusion_societe.getVoyage_voiture().getNom() %>
+                              <% } else { %>
+                                Non défini
+                              <% } %>
+                            </td>
                           </tr>
 <% }
                              } else { %>
                           <tr>
-                            <td colspan="4" class="text-center">Aucun diffusion_societe trouvé</td>
+                            <td colspan="5" class="text-center">Aucun diffusion_societe trouvé</td>
                           </tr>
                           <% } %>
                         </tbody>

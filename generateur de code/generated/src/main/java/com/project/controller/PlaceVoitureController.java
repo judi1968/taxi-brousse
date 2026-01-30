@@ -11,11 +11,41 @@ import org.springframework.web.bind.annotation.PostMapping;
 
 import com.project.dto.PlaceVoitureDTO;
 import com.project.model.table.PlaceVoiture;
+import com.project.model.table.Voiture;
 import com.project.pja.databases.MyConnection;
 import com.project.pja.databases.generalisation.DB;
 
 @Controller
 public class PlaceVoitureController {
+
+    @GetMapping("/creationPlaceVoiture")
+    public String goToCreate(Model model) {
+        Connection connection = null;
+        try {
+            connection = MyConnection.connect();
+
+
+            // Récupérer la liste des voitures
+            List<Voiture> voitures = (List<Voiture>) DB.getAll(new Voiture(), connection);
+            model.addAttribute("voitures", voitures);
+
+            // Initialiser un DTO vide pour le formulaire
+            model.addAttribute("place_voitureDTO", new PlaceVoitureDTO());
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return "pages/place_voiture/creation";
+    }
 
     @PostMapping("/savePlaceVoiture")
     public String savePlaceVoiture(@ModelAttribute PlaceVoitureDTO place_voitureDTO, Model model) {
@@ -29,7 +59,7 @@ public class PlaceVoitureController {
             PlaceVoiture place_voiture = new PlaceVoiture();
             
             // Récupération de l'objet Voiture
-            if (place_voitureDTO.getVoitureId() != null) {
+            if (place_voitureDTO.getVoitureId() != 0) {
                 Voiture voiture = Voiture.getById(place_voitureDTO.getVoitureId(), connection);
                 place_voiture.setVoiture(voiture);
             }
@@ -42,10 +72,22 @@ public class PlaceVoitureController {
             model.addAttribute("success", "PlaceVoiture enregistré avec succès !");
             model.addAttribute("place_voitureDTO", new PlaceVoitureDTO()); // Réinitialiser le formulaire
             
+            // Recharger les listes pour les foreign keys
+            List<Voiture> voitures = (List<Voiture>) DB.getAll(new Voiture(), connection);
+            model.addAttribute("voitures", voitures);
+            
         } catch (Exception e) {
             e.printStackTrace();
             model.addAttribute("error", "Erreur lors de l'enregistrement : " + e.getMessage());
             model.addAttribute("place_voitureDTO", place_voitureDTO); // Garder les données saisies
+            
+            // Recharger les listes en cas d'erreur
+            try {
+                List<Voiture> voitures = (List<Voiture>) DB.getAll(new Voiture(), connection);
+                model.addAttribute("voitures", voitures);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
         } finally {
             if (connection != null) {
                 try {

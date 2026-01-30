@@ -2,6 +2,8 @@ package com.project.controller;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +30,9 @@ import com.project.model.table.TypePlaceVoyage;
 import com.project.model.table.Voiture;
 import com.project.model.table.Voyage;
 import com.project.model.table.VoyageVoiture;
+import com.project.model.view.CAProduit;
 import com.project.model.view.DiffusionSocieteCA;
+import com.project.model.view.VCaAchatProduit;
 import com.project.pja.databases.MyConnection;
 import com.project.pja.databases.generalisation.DB;
 
@@ -164,11 +168,22 @@ public class RooterController {
     }
 
     @GetMapping("/listeVoitureParVoyage")
-    public String listeVoitureVoyage(Model model) {
+    public String listeVoitureVoyage(   @RequestParam(required = false) String moisAnne,Model model) {
         Connection connection = null;
         try {
             connection = MyConnection.connect();
+            boolean dateExist = true;
+            if (moisAnne == null) {
+                dateExist = false;
+            }else{
+                if (moisAnne.trim().length() == 0) {
+                    dateExist = false;
+                }
+            }
 
+            if (!dateExist) {
+                
+            double caTotale = 0;
             // Récupérer la liste des associations voyage-voiture
             List<VoyageVoiture> voyageVoitures = (List<VoyageVoiture>) DB.getAll(new VoyageVoiture(), connection);
             for (int i = 0; i < voyageVoitures.size(); i++) {
@@ -178,14 +193,81 @@ public class RooterController {
                 voyageVoitures.get(i).calculMontantTotaleCA(connection);
                 voyageVoitures.get(i).calculCAPubTotaleAPayer(connection);
                 voyageVoitures.get(i).calculResteCAPubAPayer();
-                
+                caTotale += voyageVoitures.get(i).getPrixMaximum();
+                caTotale += voyageVoitures.get(i).getMontantCAPub();
             }
 
+            // System.out.println(moisAnne);
+ 
+            List<VCaAchatProduit> vAchatProduits = (List<VCaAchatProduit>) DB.getAll(new VCaAchatProduit() , connection);
+            List<CAProduit> caProduits = CAProduit.getAllCAProduit(vAchatProduits, connection);
             String voyageVoituresTab = DB.getTableau(voyageVoitures, new VoyageVoiture(),"Liste de voiture par voyages", "Voitures assignées à chaque voyage");
+            String caProduitTab = DB.getTableau(caProduits, new CAProduit(),"Achat de produit generale", "");
+            String achatProduitTab = DB.getTableau(vAchatProduits, new VCaAchatProduit(),"Achat de produit detailees", "");
+            for (CAProduit caProduit : caProduits) {
+                caTotale += caProduit.getMontant();
+            }
+            
 
             // Ajouter la liste au modèle
+            model.addAttribute("ca", caTotale+" Ar");
             model.addAttribute("voyageVoitures", voyageVoitures);
             model.addAttribute("voyageParVoitureTab", voyageVoituresTab);
+            model.addAttribute("achatProduitTab", achatProduitTab);
+            model.addAttribute("caProduitTab", caProduitTab);
+
+            } else {
+                int mois = Integer.parseInt(moisAnne.split("-")[1]);
+                int anne = Integer.parseInt(moisAnne.split("-")[0]);
+                double caTotale = 0;
+
+                // Récupérer la liste des associations voyage-voiture
+                    List<VoyageVoiture> voyageVoituresTout = (List<VoyageVoiture>) DB.getAll(new VoyageVoiture(), connection);
+                    List<VoyageVoiture> voyageVoitures = new ArrayList<>();
+                    for (VoyageVoiture voyageVoiture : voyageVoituresTout) {
+                        Calendar calendar = Calendar.getInstance();
+                        calendar.setTime(voyageVoiture.getVoyage().getDate());
+                        
+                        int moisVoyage = calendar.get(Calendar.MONTH) + 1; 
+                        int anneeVoyage = calendar.get(Calendar.YEAR);
+                        if (moisVoyage == mois && anneeVoyage == anne) {
+                            voyageVoitures.add(voyageVoiture);
+                        }
+                    }
+                    
+                    for (int i = 0; i < voyageVoitures.size(); i++) {
+                        voyageVoitures.get(i).calculPrixMaximum(connection);
+                        voyageVoitures.get(i).calculCAPub(connection);
+                        voyageVoitures.get(i).calculCA(connection);
+                        voyageVoitures.get(i).calculMontantTotaleCA(connection);
+                        voyageVoitures.get(i).calculCAPubTotaleAPayer(connection);
+                        voyageVoitures.get(i).calculResteCAPubAPayer();
+                        caTotale += voyageVoitures.get(i).getPrixMaximum();
+                        caTotale += voyageVoitures.get(i).getMontantCAPub();
+                    }
+
+                    
+                    // System.out.println(moisAnne);
+                    String where = " EXTRACT(MONTH FROM date_achat) = "+mois+" AND EXTRACT(YEAR FROM date_achat) = "+anne;
+                    List<VCaAchatProduit> vAchatProduits = (List<VCaAchatProduit>) DB.getAllWhere(new VCaAchatProduit(), where , connection);
+                    List<CAProduit> caProduits = CAProduit.getAllCAProduit(vAchatProduits, connection);
+ for (CAProduit caProduit : caProduits) {
+                caTotale += caProduit.getMontant();
+            }
+                    String voyageVoituresTab = DB.getTableau(voyageVoitures, new VoyageVoiture(),"Liste de voiture par voyages", "Voitures assignées à chaque voyage");
+                    String achatProduitTab = DB.getTableau(vAchatProduits, new VCaAchatProduit(),"Achat de produit detailees", "");
+                    String caProduitTab = DB.getTableau(caProduits, new CAProduit(),"Achat de produit generale", "");
+
+                                model.addAttribute("ca", caTotale+" Ar");
+
+                    // Ajouter la liste au modèle
+                    model.addAttribute("voyageVoitures", voyageVoitures);
+                    model.addAttribute("voyageParVoitureTab", voyageVoituresTab);
+                    model.addAttribute("achatProduitTab", achatProduitTab);
+                    model.addAttribute("caProduitTab", caProduitTab);
+
+            }
+
         } catch (Exception e) {
             e.printStackTrace();
             model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
@@ -433,7 +515,6 @@ public class RooterController {
         }
         return "pages/payement_diffusion/creationPayementDiffusion";
     }
-
 
     @GetMapping("/caPublicite")
     public String caPublicite(@RequestParam(required = false) String dateDebut,

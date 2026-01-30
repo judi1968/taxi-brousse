@@ -17,6 +17,33 @@ import com.project.pja.databases.generalisation.DB;
 @Controller
 public class TypeClientController {
 
+    @GetMapping("/creationTypeClient")
+    public String goToCreate(Model model) {
+        Connection connection = null;
+        try {
+            connection = MyConnection.connect();
+
+
+            // Aucune donnée à charger
+
+            // Initialiser un DTO vide pour le formulaire
+            model.addAttribute("type_clientDTO", new TypeClientDTO());
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return "pages/type_client/creation";
+    }
+
     @PostMapping("/saveTypeClient")
     public String saveTypeClient(@ModelAttribute TypeClientDTO type_clientDTO, Model model) {
         
@@ -36,10 +63,18 @@ public class TypeClientController {
             model.addAttribute("success", "TypeClient enregistré avec succès !");
             model.addAttribute("type_clientDTO", new TypeClientDTO()); // Réinitialiser le formulaire
             
+            // Recharger les listes pour les foreign keys
+            
         } catch (Exception e) {
             e.printStackTrace();
             model.addAttribute("error", "Erreur lors de l'enregistrement : " + e.getMessage());
             model.addAttribute("type_clientDTO", type_clientDTO); // Garder les données saisies
+            
+            // Recharger les listes en cas d'erreur
+            try {
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
         } finally {
             if (connection != null) {
                 try {

@@ -17,6 +17,33 @@ import com.project.pja.databases.generalisation.DB;
 @Controller
 public class MouvementPrixPubController {
 
+    @GetMapping("/creationMouvementPrixPub")
+    public String goToCreate(Model model) {
+        Connection connection = null;
+        try {
+            connection = MyConnection.connect();
+
+
+            // Aucune donnée à charger
+
+            // Initialiser un DTO vide pour le formulaire
+            model.addAttribute("mouvement_prix_pubDTO", new MouvementPrixPubDTO());
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return "pages/mouvement_prix_pub/creation";
+    }
+
     @PostMapping("/saveMouvementPrixPub")
     public String saveMouvementPrixPub(@ModelAttribute MouvementPrixPubDTO mouvement_prix_pubDTO, Model model) {
         
@@ -37,10 +64,18 @@ public class MouvementPrixPubController {
             model.addAttribute("success", "MouvementPrixPub enregistré avec succès !");
             model.addAttribute("mouvement_prix_pubDTO", new MouvementPrixPubDTO()); // Réinitialiser le formulaire
             
+            // Recharger les listes pour les foreign keys
+            
         } catch (Exception e) {
             e.printStackTrace();
             model.addAttribute("error", "Erreur lors de l'enregistrement : " + e.getMessage());
             model.addAttribute("mouvement_prix_pubDTO", mouvement_prix_pubDTO); // Garder les données saisies
+            
+            // Recharger les listes en cas d'erreur
+            try {
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
         } finally {
             if (connection != null) {
                 try {

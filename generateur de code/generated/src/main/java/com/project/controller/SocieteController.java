@@ -17,6 +17,33 @@ import com.project.pja.databases.generalisation.DB;
 @Controller
 public class SocieteController {
 
+    @GetMapping("/creationSociete")
+    public String goToCreate(Model model) {
+        Connection connection = null;
+        try {
+            connection = MyConnection.connect();
+
+
+            // Aucune donnée à charger
+
+            // Initialiser un DTO vide pour le formulaire
+            model.addAttribute("societeDTO", new SocieteDTO());
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            model.addAttribute("error", "Erreur lors du chargement des données: " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return "pages/societe/creation";
+    }
+
     @PostMapping("/saveSociete")
     public String saveSociete(@ModelAttribute SocieteDTO societeDTO, Model model) {
         
@@ -36,10 +63,18 @@ public class SocieteController {
             model.addAttribute("success", "Societe enregistré avec succès !");
             model.addAttribute("societeDTO", new SocieteDTO()); // Réinitialiser le formulaire
             
+            // Recharger les listes pour les foreign keys
+            
         } catch (Exception e) {
             e.printStackTrace();
             model.addAttribute("error", "Erreur lors de l'enregistrement : " + e.getMessage());
             model.addAttribute("societeDTO", societeDTO); // Garder les données saisies
+            
+            // Recharger les listes en cas d'erreur
+            try {
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
         } finally {
             if (connection != null) {
                 try {

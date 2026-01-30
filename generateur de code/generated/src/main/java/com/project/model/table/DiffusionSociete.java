@@ -1,6 +1,7 @@
 package com.project.model.table;
 
 import com.project.model.table.Societe;
+import com.project.model.table.VoyageVoiture;
 import com.project.pja.databases.generalisation.annotation.AttributDb;
 import com.project.pja.databases.generalisation.annotation.IdDb;
 import com.project.pja.databases.generalisation.annotation.TableDb;
@@ -22,14 +23,18 @@ public class DiffusionSociete {
     @AttributDb(name = "nombre_pub")
     private Double nombrePub;
 
+    @AttributDb(name = "id_voyage_voiture")
+    private VoyageVoiture voyage_voiture; // ← objet VoyageVoiture
+
     public DiffusionSociete() {
     }
 
-    public DiffusionSociete(int id, Societe societe, Date dateDiffusion, Double nombrePub) {
+    public DiffusionSociete(int id, Societe societe, Date dateDiffusion, Double nombrePub, VoyageVoiture voyage_voiture) {
         this.id = id;
         this.societe = societe;
         this.dateDiffusion = dateDiffusion;
         this.nombrePub = nombrePub;
+        this.voyage_voiture = voyage_voiture;
     }
 
     public int getId() {
@@ -70,6 +75,14 @@ public class DiffusionSociete {
 
     public void setNombrePub(Double nombrePub) {
         this.nombrePub = nombrePub;
+    }
+
+    public VoyageVoiture getVoyage_voiture() {
+        return this.voyage_voiture;
+    }
+
+    public void setVoyage_voiture(VoyageVoiture voyage_voiture) {
+        this.voyage_voiture = voyage_voiture;
     }
 
 }

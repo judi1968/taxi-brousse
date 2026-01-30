@@ -33,8 +33,38 @@
             </div>
             <% } %>
             
+            <div class="row">
+              <div class="col-md-12 grid-margin stretch-card">
+                <div class="card">
+                  <div class="card-body">
+                    <h4 class="card-title">Filtre</h4>
+                    <form class="forms-sample" action="listeVoitureParVoyage" method="get">
+                      <div class="row">
+                        <div class="col-md-6">
+                         
+                          <div class="form-group row">
+                            <label for="dateDiffusion" class="col-sm-3 col-form-label">Chosir mois anne</label>
+                            <div class="col-sm-9">
+                              <input type="month" class="form-control" id="dateDiffusion" name="moisAnne" >
+                            </div>
+                            <h1>            <%= (String) request.getAttribute("ca")  %>
+</h1>
+                          </div>
+                  
+                        </div>
+                      </div>
+                      <button type="submit" class="btn btn-primary me-2">Chercher</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
 
             <%= (String) request.getAttribute("voyageParVoitureTab")  %>
+            <%= (String) request.getAttribute("caProduitTab")  %>
+            <%= (String) request.getAttribute("achatProduitTab")  %>
+
+            
           </div>
           <%@ include file="../../includes/footer.jsp" %>
         </div>

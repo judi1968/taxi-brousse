@@ -48,6 +48,8 @@
                             <th>Id</th>
                             <th>Nom</th>
                             <th>Date</th>
+                            <th>IdGareDepart</th>
+                            <th>IdGareArrive</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -64,11 +66,25 @@
                                 Non défini
                               <% } %>
                             </td>
+                            <td>
+                              <% if (voyage.getGare_depart() != null) { %>
+                                <%= voyage.getGare_depart().getNom() %>
+                              <% } else { %>
+                                Non défini
+                              <% } %>
+                            </td>
+                            <td>
+                              <% if (voyage.getGare_arrive() != null) { %>
+                                <%= voyage.getGare_arrive().getNom() %>
+                              <% } else { %>
+                                Non défini
+                              <% } %>
+                            </td>
                           </tr>
 <% }
                              } else { %>
                           <tr>
-                            <td colspan="3" class="text-center">Aucun voyage trouvé</td>
+                            <td colspan="5" class="text-center">Aucun voyage trouvé</td>
                           </tr>
                           <% } %>
                         </tbody>
